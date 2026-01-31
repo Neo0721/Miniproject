@@ -1,0 +1,778 @@
+[00:00:01.825] Server  LOG      ✓ Ready in 1579ms
+[00:00:12.490] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:12.699] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+[00:00:12.699] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/","route":"/"}
+[00:00:12.699] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/","route":"/"}
+[00:00:12.699] Browser LOG     %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {"dp":"/","o":"http://localhost:3000/","r":"","sdkn":"@vercel/analytics/next","sdkv":"1.3.1","sv":"0.1.3","ts":1769538884560}
+[00:00:12.699] Browser LOG     %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {"dp":"/","o":"http://localhost:3000/","sdkn":"@vercel/analytics/next","sdkv":"1.3.1","sv":"0.1.3","ts":1769538884560}
+[00:00:15.402] Server  ERROR    ⨯ ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:15.524] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.524] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.524] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.957] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.957] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.957] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.959] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.959] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.959] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:15.983] Server  ERROR    ⨯ ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:16.101] Browser ERROR   uncaughtError: Error: ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:16.286] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:16.286] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:16.286] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:16.286] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:16.286] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:16.286] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:25.284] Browser ERROR   uncaughtError: Error: ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:25.426] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:25.426] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:25.426] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:25.426] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:25.426] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:25.426] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:28.041] Browser ERROR   uncaughtError: Error: ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:28.192] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:28.192] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:28.192] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:28.192] Browser ERROR   ./lib/firebase.ts:1:1
+Module not found: Can't resolve 'firebase/app'
+> 1 | import { initializeApp } from "firebase/app";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:28.192] Browser ERROR   ./app/login/page.tsx:10:1
+Module not found: Can't resolve 'firebase/auth'
+   8 | import { Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react'
+   9 | import { useRouter } from 'next/navigation'
+> 10 | import { signInWithEmailAndPassword } from 'firebase/auth'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | import { auth } from '@/lib/firebase'
+  12 | import { verifyToken } from '@/lib/api'
+  13 |
+
+Import traces:
+  Client Component Browser:
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:28.192] Browser ERROR   ./lib/firebase.ts:2:1
+Module not found: Can't resolve 'firebase/auth'
+  1 | import { initializeApp } from "firebase/app";
+> 2 | import { getAuth, connectAuthEmulator } from "firebase/auth";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | // Firebase configuration - Update these with your Firebase project credentials
+  5 | // Get these from: Firebase Console -> Project Settings -> General
+
+Import traces:
+  Client Component Browser:
+    ./lib/firebase.ts [Client Component Browser]
+    ./app/login/page.tsx [Client Component Browser]
+    ./app/login/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./lib/firebase.ts [Client Component SSR]
+    ./app/login/page.tsx [Client Component SSR]
+    ./app/login/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
