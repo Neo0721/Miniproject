@@ -1,339 +1,400 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { ArrowLeft, Calendar, CheckCircle, Clock, MessageCircle, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Clock, CheckCircle, AlertCircle, MapPin, User, Calendar, MessageCircle } from 'lucide-react'
-import { useParams } from 'next/navigation'
-import Breadcrumbs from '@/components/breadcrumbs'
-import ImageIcon from '@/components/ImageIcon'
-import MessageSquare from '@/components/MessageSquare'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/hooks/use-toast'
+import {
+  addInternalNote,
+  fetchIssueById,
+  postIssueComment,
+  postStatusUpdate,
+  rateIssue,
+  reopenIssueWithReason,
+  submitResolutionFeedback,
+  type Issue,
+  type IssueStatus
+} from '@/lib/api'
+import { priorityClass } from '@/lib/issue-config'
 
-interface TimelineEvent {
-  id: number
-  type: 'reported' | 'assigned' | 'in-progress' | 'resolved'
-  title: string
-  description: string
-  date: string
-  time: string
-  author: string
+function statusClass(status: string | undefined): string {
+  switch (status) {
+    case 'resolved':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+    case 'in-progress':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+    default:
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+  }
 }
 
-const timelineEvents: TimelineEvent[] = [
-  {
-    id: 1,
-    type: 'reported',
-    title: 'Issue Reported',
-    description: 'Initial issue report submitted by student',
-    date: 'Dec 15, 2024',
-    time: '10:30 AM',
-    author: 'John Doe'
-  },
-  {
-    id: 2,
-    type: 'assigned',
-    title: 'Assigned to Department',
-    description: 'Issue assigned to IT Department for resolution',
-    date: 'Dec 15, 2024',
-    time: '11:15 AM',
-    author: 'Admin'
-  },
-  {
-    id: 3,
-    type: 'in-progress',
-    title: 'In Progress',
-    description: 'IT Department has started working on the issue. Equipment diagnostics in progress.',
-    date: 'Dec 16, 2024',
-    time: '09:00 AM',
-    author: 'IT Staff - Mike Chen'
-  },
-  {
-    id: 4,
-    type: 'in-progress',
-    title: 'Update Added',
-    description: 'Found the issue - projector lamp needs replacement. Ordering replacement.',
-    date: 'Dec 17, 2024',
-    time: '02:30 PM',
-    author: 'IT Staff - Mike Chen'
-  }
-]
-
-const mockIssueDetails = {
-  id: 1,
-  title: 'Classroom Projector Not Working',
-  category: 'Classroom Equipment',
-  location: 'Block A, Room 101',
-  reportedBy: 'John Doe',
-  reportedDate: 'Dec 15, 2024, 10:30 AM',
-  status: 'in-progress',
-  priority: 'high',
-  description: 'The projector in classroom Block A Room 101 is not turning on. We have tried multiple times but it shows no sign of power. Please check the power supply and lamp status. This is affecting our daily classes.',
-  images: []
+function formatDate(iso?: string): string {
+  if (!iso) return 'N/A'
+  const date = new Date(iso)
+  return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleString()
 }
 
 export default function IssueDetailsPage() {
-  const params = useParams()
-  const issueId = params.id
-  const [remark, setRemark] = useState('')
-  const [remarks, setRemarks] = useState<Array<{ author: string; text: string; date: string }>>([
-    {
-      author: 'Admin',
-      text: 'We received your report and have assigned it to the IT department. They will contact you with an update.',
-      date: 'Dec 15, 2024, 11:15 AM'
-    }
-  ])
+  const params = useParams<{ id: string }>()
+  const issueId = params?.id || ''
+  const { toast } = useToast()
 
-  const handleAddRemark = () => {
-    if (remark.trim()) {
-      setRemarks([...remarks, {
-        author: 'You',
-        text: remark,
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-      }])
-      setRemark('')
+  const [issue, setIssue] = useState<Issue | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [commentText, setCommentText] = useState('')
+  const [updateText, setUpdateText] = useState('')
+  const [updateStatus, setUpdateStatus] = useState<IssueStatus>('in-progress')
+  const [rating, setRating] = useState(5)
+  const [feedback, setFeedback] = useState('')
+  const [internalNoteText, setInternalNoteText] = useState('')
+  const [reopenReason, setReopenReason] = useState<'not-fixed' | 'recurring' | 'partial-fix' | 'wrong-issue' | 'other'>('not-fixed')
+
+  const role = typeof window !== 'undefined' ? (localStorage.getItem('role') || 'student').toLowerCase() : 'student'
+  const currentUser = typeof window !== 'undefined' ? localStorage.getItem('name') || 'You' : 'You'
+  const canPostStatus = role === 'staff' || role === 'admin' || role === 'teacher'
+  const isStudent = role === 'student'
+
+  const loadIssue = async (withLoader = false) => {
+    if (!issueId) return
+    if (withLoader) setLoading(true)
+    const data = await fetchIssueById(issueId)
+    setIssue(data)
+    if (withLoader) setLoading(false)
+  }
+
+  useEffect(() => {
+    void loadIssue(true)
+  }, [issueId])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void loadIssue(false)
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [issueId])
+
+  const daysOpen = useMemo(() => {
+    if (!issue?.date) return 0
+    const start = new Date(issue.date).getTime()
+    const end = issue.resolvedAt ? new Date(issue.resolvedAt).getTime() : Date.now()
+    if (Number.isNaN(start) || Number.isNaN(end) || end < start) return 0
+    return Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)))
+  }, [issue?.date, issue?.resolvedAt])
+
+  const handleComment = async () => {
+    if (!issueId || !commentText.trim()) return
+    const updated = await postIssueComment(issueId, commentText, canPostStatus ? 'staff' : 'student', currentUser)
+    if (updated) {
+      setIssue(updated)
+      setCommentText('')
+      toast({ title: 'Comment posted' })
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'pending': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
-      case 'in-progress': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
-      case 'resolved': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
-      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+  const handleStatusUpdate = async () => {
+    if (!issueId || !updateText.trim()) return
+    const updated = await postStatusUpdate(issueId, updateStatus, updateText, currentUser)
+    if (updated) {
+      setIssue(updated)
+      setUpdateText('')
+      toast({ title: 'Status update posted' })
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'pending': return <AlertCircle className="w-5 h-5" />
-      case 'in-progress': return <Clock className="w-5 h-5" />
-      case 'resolved': return <CheckCircle className="w-5 h-5" />
-      default: return null
+  const handleRating = async () => {
+    if (!issueId || !issue || issue.status !== 'resolved') return
+    const updated = await rateIssue(issueId, rating, feedback, currentUser)
+    if (updated) {
+      setIssue(updated)
+      toast({ title: 'Thanks for rating the resolution' })
     }
   }
 
-  const getTimelineIcon = (type: string) => {
-    switch(type) {
-      case 'reported': return <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-      case 'assigned': return <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-      case 'in-progress': return <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-      case 'resolved': return <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-      default: return null
+  const handleInternalNote = async () => {
+    if (!issueId || !internalNoteText.trim()) return
+    const updated = await addInternalNote(issueId, internalNoteText, currentUser)
+    if (updated) {
+      setIssue(updated)
+      setInternalNoteText('')
+      toast({ title: 'Internal note added' })
     }
   }
+
+  const handleReopen = async () => {
+    if (!issueId) return
+    const updated = await reopenIssueWithReason(
+      issueId,
+      currentUser,
+      reopenReason,
+      'Resolution is incomplete, requesting reopen.'
+    )
+    if (updated) {
+      setIssue(updated)
+      toast({ title: 'Issue reopened' })
+      return
+    }
+    toast({ title: 'Reopen failed', description: '48-hour reopen window may have expired.', variant: 'destructive' })
+  }
+
+  const handleResolutionConfirmation = async (value: 'confirmed' | 'not-resolved') => {
+    if (!issueId) return
+    const updated = await submitResolutionFeedback(issueId, value, currentUser)
+    if (!updated) return
+    setIssue(updated)
+    toast({ title: value === 'confirmed' ? 'Marked as resolved' : 'Marked as not resolved' })
+  }
+
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">Loading issue...</div>
+  }
+
+  if (!issue) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">Issue not found.</div>
+  }
+
+  const comments = issue.comments || []
+  const updates = issue.statusUpdates || []
+  const attachments = issue.attachments || []
+  const internalNotes = issue.internalNotes || []
+  const canReopen = Boolean(
+    isStudent &&
+    issue.status === 'resolved' &&
+    issue.canReopenUntil &&
+    Date.now() <= new Date(issue.canReopenUntil).getTime()
+  )
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link href="/dashboard/student" className="flex items-center gap-2 hover:opacity-80 transition mb-4">
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Back to Dashboard</span>
           </Link>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-wrap gap-3 justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">{mockIssueDetails.title}</h1>
-              <p className="text-muted-foreground mt-1">Issue ID: {issueId}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{issue.title}</h1>
+              <p className="text-muted-foreground mt-1">Issue ID: {issue.id}</p>
             </div>
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(mockIssueDetails.status)} w-fit`}>
-              {getStatusIcon(mockIssueDetails.status)}
-              {mockIssueDetails.status.charAt(0).toUpperCase() + mockIssueDetails.status.slice(1).replace('-', ' ')}
+            <div className="flex flex-wrap gap-2">
+              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusClass(issue.status)}`}>
+                {(issue.status || 'pending').replace('-', ' ')}
+              </span>
+              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${priorityClass(issue.priority || 'low')}`}>
+                {(issue.priority || 'low').toUpperCase()}
+              </span>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Issue Details Card */}
-            <Card className="p-6 animate-fade-in-up">
-              <h2 className="text-xl font-bold text-foreground mb-6">Issue Details</h2>
-
-              <div className="space-y-4 mb-8">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Category</p>
-                    <p className="font-semibold text-foreground">{mockIssueDetails.category}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Priority</p>
-                    <p className="font-semibold text-foreground capitalize">{mockIssueDetails.priority}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Location</p>
-                    <div className="flex items-center gap-2 text-foreground font-semibold">
-                      <MapPin className="w-4 h-4" />
-                      {mockIssueDetails.location}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Reported Date</p>
-                    <div className="flex items-center gap-2 text-foreground font-semibold">
-                      <Calendar className="w-4 h-4" />
-                      {mockIssueDetails.reportedDate}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-4">
-                  <p className="text-sm text-muted-foreground mb-2">Reported By</p>
-                  <div className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-muted-foreground" />
-                    <p className="font-semibold text-foreground">{mockIssueDetails.reportedBy}</p>
-                  </div>
-                </div>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="p-6">
+            <h2 className="font-bold mb-4">Issue Details</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <p><span className="text-muted-foreground">Department:</span> {issue.department || issue.category}</p>
+              <p><span className="text-muted-foreground">Sub-category:</span> {issue.subCategory || issue.category}</p>
+              <p><span className="text-muted-foreground">Location:</span> {issue.location}</p>
+              <p><span className="text-muted-foreground">Building:</span> {issue.building || 'General'}</p>
+              <p><span className="text-muted-foreground">Floor / Room:</span> {issue.floor || 'Ground Floor'} / {issue.room || 'N/A'}</p>
+              <p className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {formatDate(issue.date)}</p>
+              <p><span className="text-muted-foreground">Reported by:</span> {issue.submittedBy}</p>
+              <p><span className="text-muted-foreground">Assigned to:</span> {issue.assignee || 'Unassigned'}</p>
+              <p><span className="text-muted-foreground">Timetable impact:</span> {issue.timetableImpact ? 'Yes' : 'No'}</p>
+              <p><span className="text-muted-foreground">Asset ID:</span> {issue.assetId || 'N/A'}</p>
+            </div>
+            <p className="mt-5 text-foreground leading-relaxed">{issue.description}</p>
+            {issue.tags && issue.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {issue.tags.map((tag) => (
+                  <span key={tag} className="px-2 py-1 rounded bg-muted text-xs">#{tag}</span>
+                ))}
               </div>
+            )}
+          </Card>
 
-              <div className="border-t border-border pt-6">
-                <h3 className="font-bold text-foreground mb-3">Description</h3>
-                <p className="text-foreground leading-relaxed">{mockIssueDetails.description}</p>
+          <Card className="p-6">
+            <h2 className="font-bold mb-4">Attachments</h2>
+            {attachments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No photos uploaded.</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {attachments.map((item, idx) => (
+                  <div key={`${item.name}-${idx}`} className="rounded-md border border-border p-2">
+                    {item.dataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.dataUrl} alt={item.name} className="w-full h-28 object-cover rounded" />
+                    ) : (
+                      <div className="w-full h-28 bg-muted rounded" />
+                    )}
+                    <p className="text-xs mt-2 truncate">{item.name}</p>
+                  </div>
+                ))}
               </div>
+            )}
+          </Card>
 
-              {mockIssueDetails.images.length === 0 && (
-                <div className="mt-6 border-t border-border pt-6">
-                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                    <ImageIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-muted-foreground">No images attached</p>
+          <Card className="p-6">
+            <h2 className="font-bold mb-4 flex items-center gap-2"><Clock className="w-5 h-5" />Status Updates</h2>
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {updates.length === 0 && <p className="text-sm text-muted-foreground">No updates yet.</p>}
+              {updates.map((entry) => (
+                <div key={entry.id} className="border border-border rounded-lg p-3">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded ${statusClass(entry.status)}`}>{entry.status}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</span>
+                  </div>
+                  <p className="text-sm mt-2">{entry.message}</p>
+                  <p className="text-xs text-muted-foreground mt-1">By {entry.by}</p>
+                </div>
+              ))}
+            </div>
+
+            {canPostStatus && (
+              <div className="mt-4 pt-4 border-t border-border space-y-3">
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <select
+                    value={updateStatus}
+                    onChange={(e) => setUpdateStatus(e.target.value as IssueStatus)}
+                    className="px-3 py-2 border border-border rounded-md bg-background"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                  <Input
+                    value={updateText}
+                    onChange={(e) => setUpdateText(e.target.value)}
+                    placeholder="Post progress update"
+                    className="sm:col-span-2"
+                  />
+                </div>
+                <Button onClick={handleStatusUpdate}>Post Status Update</Button>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="font-bold mb-4 flex items-center gap-2"><MessageCircle className="w-5 h-5" />Discussion Thread</h2>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {comments.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}
+              {comments.map((item) => (
+                <div key={item.id} className="bg-muted/40 rounded-lg p-3">
+                  <div className="flex justify-between items-center gap-2">
+                    <p className="text-sm font-semibold">{item.author} <span className="text-xs text-muted-foreground">({item.role})</span></p>
+                    <p className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</p>
+                  </div>
+                  <p className="text-sm mt-1">{item.message}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add a comment" />
+              <Button onClick={handleComment}>Post</Button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card className="p-6">
+            <h3 className="font-bold mb-3">Issue Metrics</h3>
+            <div className="space-y-2 text-sm">
+              <p><span className="text-muted-foreground">Days open:</span> {daysOpen}</p>
+              <p><span className="text-muted-foreground">Last updated:</span> {formatDate(issue.updatedAt)}</p>
+              <p><span className="text-muted-foreground">Resolution:</span> {issue.resolvedAt ? formatDate(issue.resolvedAt) : 'Pending'}</p>
+              <p><span className="text-muted-foreground">ETA:</span> {issue.estimatedResolutionHours ? `${issue.estimatedResolutionHours} hours` : 'N/A'}</p>
+              <p><span className="text-muted-foreground">Escalated:</span> {issue.escalated ? `Yes (${formatDate(issue.escalatedAt)})` : 'No'}</p>
+              <p><span className="text-muted-foreground">Reopened count:</span> {issue.reopenedCount || 0}</p>
+            </div>
+          </Card>
+
+          {canPostStatus && (
+            <Card className="p-6">
+              <h3 className="font-bold mb-3">Internal Notes (Staff Only)</h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {internalNotes.length === 0 && <p className="text-sm text-muted-foreground">No internal notes.</p>}
+                {internalNotes.map((note) => (
+                  <div key={note.id} className="text-sm border border-border rounded p-2">
+                    <p>{note.message}</p>
+                    <p className="text-xs text-muted-foreground mt-1">By {note.author} • {formatDate(note.createdAt)}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Input value={internalNoteText} onChange={(e) => setInternalNoteText(e.target.value)} placeholder="Add private note" />
+                <Button onClick={handleInternalNote}>Save</Button>
+              </div>
+            </Card>
+          )}
+
+          {issue.status === 'resolved' && (
+            <Card className="p-6">
+              <h3 className="font-bold mb-3 flex items-center gap-2"><Star className="w-4 h-4" />Rate Resolution</h3>
+              {issue.rating ? (
+                <div className="text-sm">
+                  <p>Rated: <strong>{issue.rating.score}/5</strong></p>
+                  <p className="text-muted-foreground mt-1">{issue.rating.feedback || 'No additional feedback'}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <select
+                    value={rating}
+                    onChange={(e) => setRating(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                  >
+                    {[5, 4, 3, 2, 1].map((value) => (
+                      <option key={value} value={value}>{value} / 5</option>
+                    ))}
+                  </select>
+                  <textarea
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    rows={3}
+                    placeholder="How was the resolution quality?"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                  />
+                  <Button className="w-full" onClick={handleRating}>Submit Rating</Button>
+                </div>
+              )}
+              {canReopen && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">You can reopen this issue until {formatDate(issue.canReopenUntil)}</p>
+                  <select
+                    value={reopenReason}
+                    onChange={(e) => setReopenReason(e.target.value as 'not-fixed' | 'recurring' | 'partial-fix' | 'wrong-issue' | 'other')}
+                    className="w-full mb-2 px-3 py-2 border border-border rounded-md bg-background text-sm"
+                  >
+                    <option value="not-fixed">Not fixed</option>
+                    <option value="partial-fix">Partial fix only</option>
+                    <option value="recurring">Issue recurring</option>
+                    <option value="wrong-issue">Wrong issue marked resolved</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <Button variant="outline" className="w-full" onClick={handleReopen}>Reopen Issue</Button>
+                </div>
+              )}
+              {isStudent && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Was this resolved to your satisfaction?</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => handleResolutionConfirmation('confirmed')}>Yes, Resolved</Button>
+                    <Button variant="outline" className="flex-1" onClick={() => handleResolutionConfirmation('not-resolved')}>Not Yet</Button>
                   </div>
                 </div>
               )}
             </Card>
+          )}
 
-            {/* Timeline */}
-            <Card className="p-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-              <h2 className="text-xl font-bold text-foreground mb-6">Resolution Timeline</h2>
-
-              <div className="space-y-8">
-                {timelineEvents.map((event, index) => (
-                  <div key={event.id} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                        {getTimelineIcon(event.type)}
-                      </div>
-                      {index < timelineEvents.length - 1 && (
-                        <div className="w-1 h-12 bg-muted mt-4"></div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 pt-2">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
-                        <h4 className="font-bold text-foreground">{event.title}</h4>
-                        <span className="text-xs text-muted-foreground">{event.date} at {event.time}</span>
-                      </div>
-                      <p className="text-sm text-foreground mb-2">{event.description}</p>
-                      <p className="text-xs text-muted-foreground">By {event.author}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Remarks Section */}
-            <Card className="p-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
-                Comments & Remarks
-              </h2>
-
-              {/* Existing Remarks */}
-              <div className="space-y-4 mb-6 max-h-80 overflow-y-auto">
-                {remarks.map((remark, index) => (
-                  <div key={index} className="p-4 bg-muted rounded-lg">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="font-semibold text-foreground">{remark.author}</p>
-                      <p className="text-xs text-muted-foreground">{remark.date}</p>
-                    </div>
-                    <p className="text-foreground text-sm">{remark.text}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add Remark */}
-              <div className="border-t border-border pt-6">
-                <label className="block text-sm font-medium text-foreground mb-2">Add a Remark</label>
-                <div className="space-y-3">
-                  <textarea
-                    value={remark}
-                    onChange={(e) => setRemark(e.target.value)}
-                    placeholder="Share an update or comment about this issue..."
-                    rows={3}
-                    className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <Button
-                    onClick={handleAddRemark}
-                    disabled={!remark.trim()}
-                    className="bg-primary hover:bg-primary/90 text-white"
-                  >
-                    Post Remark
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Stats */}
-            <Card className="p-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-              <h3 className="font-bold text-foreground mb-4">Issue Stats</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-4 border-b border-border">
-                  <span className="text-sm text-muted-foreground">Issue ID</span>
-                  <span className="font-bold text-foreground">#{String(issueId).padStart(5, '0')}</span>
-                </div>
-                <div className="flex justify-between items-center pb-4 border-b border-border">
-                  <span className="text-sm text-muted-foreground">Days Open</span>
-                  <span className="font-bold text-foreground">2 days</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Priority</span>
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    mockIssueDetails.priority === 'high' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
-                  }`}>
-                    {mockIssueDetails.priority.charAt(0).toUpperCase() + mockIssueDetails.priority.slice(1)}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Actions */}
-            <Card className="p-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              <h3 className="font-bold text-foreground mb-4">Actions</h3>
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start text-left bg-transparent">
-                  Edit Issue
-                </Button>
-                <Button variant="outline" className="w-full justify-start text-left bg-transparent">
-                  Download Report
-                </Button>
-                <Button variant="outline" className="w-full justify-start text-left text-red-600 bg-transparent">
-                  Close Issue
-                </Button>
-              </div>
-            </Card>
-
-            {/* Department Info */}
-            <Card className="p-6 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <h3 className="font-bold text-foreground mb-4">Assigned Department</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Department</p>
-                  <p className="font-semibold text-foreground">IT Department</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Assigned To</p>
-                  <p className="font-semibold text-foreground">Mike Chen</p>
-                </div>
-                <Button variant="outline" className="w-full text-sm mt-2 bg-transparent">
-                  Contact Assigned Staff
-                </Button>
-              </div>
-            </Card>
-          </div>
+          <Card className="p-6">
+            <Button variant="outline" className="w-full bg-transparent" onClick={() => window.print()}>
+              <CheckCircle className="w-4 h-4 mr-2" />Export as PDF (Print)
+            </Button>
+          </Card>
         </div>
       </main>
     </div>

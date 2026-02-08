@@ -1,12 +1,24 @@
-'use client'
+ 'use client'
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { useEffect, useState } from 'react'
 import { CheckCircle, FileText, Zap, AlertCircle, Wifi, Home, Book, Shield } from 'lucide-react'
+import { APP_NAME, APP_SHORT_NAME, CAMPUS_NAME, ORG_NAME } from '@/lib/branding'
 
 export default function LandingPage() {
+  const [role, setRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const r = localStorage.getItem('role')
+      setRole(r)
+    } catch (e) {
+      setRole(null)
+    }
+  }, [])
   const categories = [
     { icon: AlertCircle, label: 'Classroom Equipment', color: 'text-blue-600' },
     { icon: Wifi, label: 'WiFi / IT', color: 'text-purple-600' },
@@ -51,9 +63,9 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
-              CIR
+              FA
             </div>
-            <span className="font-bold text-lg text-primary">Campus Issue Resolver</span>
+            <span className="font-bold text-lg text-primary">{APP_NAME}</span>
             </div>
             <div className="hidden md:flex gap-6">
               <a href="#how-it-works" className="text-foreground hover:text-primary transition">How It Works</a>
@@ -62,6 +74,11 @@ export default function LandingPage() {
             </div>
             <div className="flex gap-2 items-center">
               <ThemeToggle />
+              {role === 'admin' && (
+                <Link href="/admin/dashboard">
+                  <Button variant="ghost" className="mr-2">Admin</Button>
+                </Link>
+              )}
               <Link href="/login">
                 <Button variant="outline">Login</Button>
               </Link>
@@ -78,13 +95,13 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center animate-fade-in-up">
             <h1 className="text-5xl sm:text-6xl font-bold text-primary mb-6">
-              Resolve Campus Issues,{' '}
+              Building a Better {CAMPUS_NAME},{' '}
               <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-                Together
+                One Fix at a Time
               </span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              A professional platform where students and faculty report campus issues and collaborate with college authorities. Track every issue from report to resolution in real-time.
+              Official issue reporting platform for {ORG_NAME}. Track every issue from report to resolution in real-time.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Link href="/report-issue">
@@ -168,7 +185,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl font-bold text-center text-primary mb-4">Live Issue Status</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            See real-time updates on all reported campus issues
+            See real-time updates on all reported {CAMPUS_NAME} issues
           </p>
           <div className="grid md:grid-cols-3 gap-6">
             {issues.map((issue) => (
@@ -194,8 +211,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h4 className="font-bold mb-4">Campus Issue Resolver</h4>
-              <p className="text-sm text-primary-foreground/80">A professional college platform for transparent issue tracking and collaborative problem-solving between students, faculty, and administration.</p>
+              <h4 className="font-bold mb-4">{APP_NAME}</h4>
+              <p className="text-sm text-primary-foreground/80">Official platform for transparent issue tracking at {ORG_NAME}.</p>
             </div>
             <div>
               <h5 className="font-semibold mb-4">Quick Links</h5>
@@ -222,7 +239,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-primary-foreground/20 pt-8 text-center text-sm text-primary-foreground/80">
-            <p>&copy; 2024 Campus Issue Resolver. All rights reserved.</p>
+            <p>&copy; 2024 {APP_SHORT_NAME}. All rights reserved.</p>
           </div>
         </div>
       </footer>

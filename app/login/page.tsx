@@ -49,8 +49,18 @@ export default function LoginPage() {
 
     setTimeout(() => {
       setIsLoading(false)
-      const dashboardRoute = role === 'student' ? '/dashboard/student' : '/dashboard/teacher'
+      let dashboardRoute = '/dashboard/student'
+      if (role === 'teacher') dashboardRoute = '/dashboard/teacher'
+      else if (role === 'staff') dashboardRoute = '/staff/dashboard'
+      else if (role === 'admin') dashboardRoute = '/admin/dashboard'
       const userName = email.split('@')[0]
+      // persist role locally so nav can show admin links
+      try {
+        localStorage.setItem('role', role)
+        localStorage.setItem('name', userName)
+      } catch (e) {
+        // ignore if running in non-browser environment
+      }
       router.push(`${dashboardRoute}?name=${encodeURIComponent(userName)}&role=${role}`)
     }, 1500)
   }
@@ -72,7 +82,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">I am a</label>
-              <div className="flex gap-4">
+              <div className="flex gap-4 flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -94,6 +104,28 @@ export default function LoginPage() {
                     className="w-4 h-4"
                   />
                   <span className="text-sm text-foreground">Teacher</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="staff"
+                    checked={role === 'staff'}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-foreground">Staff</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="admin"
+                    checked={role === 'admin'}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-foreground">Admin</span>
                 </label>
               </div>
             </div>

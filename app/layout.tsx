@@ -3,6 +3,8 @@ import type { Metadata } from 'next'
 import { Poppins, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from './theme-provider'
+import { Toaster } from '@/components/ui/toaster'
+import { APP_NAME, ORG_NAME } from '@/lib/branding'
 import './globals.css'
 
 const poppins = Poppins({ 
@@ -12,8 +14,8 @@ const poppins = Poppins({
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Campus Issue Resolver',
-  description: 'A professional college platform for reporting and resolving campus issues. Students and teachers can report issues and track resolution progress in real-time.',
+  title: APP_NAME,
+  description: `Official issue reporting and resolution platform for ${ORG_NAME}.`,
   generator: 'v0.app',
   icons: {
     icon: [
@@ -44,6 +46,7 @@ export default function RootLayout({
       <body className={`${inter.className} font-sans antialiased bg-background text-foreground transition-colors duration-300`}>
         <ThemeProvider>
           {children}
+          <Toaster />
           <Analytics />
         </ThemeProvider>
       </body>
