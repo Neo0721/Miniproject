@@ -303,28 +303,3 @@ export default function TeacherRegisterPage() {
     </div>
   )
 }
-                </button>
-              </div>
-              {errors.confirmPassword && <p className="text-red-600 text-xs mt-1">{errors.confirmPassword}</p>}
-            </div>
-
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-secondary hover:bg-secondary/90 text-white mt-6"
-            >
-              {isLoading ? 'Creating account...' : 'Create Account'}
-            </Button>
-
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Already have an account?{' '}
-              <Link href="/login" className="text-primary hover:underline font-semibold">
-                Sign in
-              </Link>
-            </p>
-          </form>
-        </Card>
-      </div>
-    </div>
-  )
-}

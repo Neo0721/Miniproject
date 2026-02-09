@@ -24,6 +24,8 @@ export default function ReportIssuePage() {
     location: '',
     description: ''
   })
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>('')
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -58,12 +60,19 @@ export default function ReportIssuePage() {
     setGeneralError('')
 
     try {
-      const result = await createIssue({
+      const issuePayload: any = {
         title: formData.title,
         category: formData.category,
         location: formData.location,
         description: formData.description
-      })
+      }
+
+      // Add image if selected
+      if (imagePreview) {
+        issuePayload.imageBase64 = imagePreview
+      }
+
+      const result = await createIssue(issuePayload)
 
       if (!result.success) {
         setGeneralError(result.message || 'Failed to create issue')
@@ -72,7 +81,7 @@ export default function ReportIssuePage() {
       }
 
       setSuccessData({
-        id: result.data?.issue?._id || result.data?._id || 'ISSUE-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+        id: result.data?._id || 'ISSUE-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
         title: formData.title
       })
       setShowSuccess(true)
@@ -91,6 +100,38 @@ export default function ReportIssuePage() {
       setErrors(prev => ({ ...prev, [name]: undefined }))
     }
     setGeneralError('')
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setGeneralError('Please select a valid image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setGeneralError('Image size should not exceed 5MB')
+      return
+    }
+
+    setSelectedImage(file)
+    setGeneralError('')
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null)
+    setImagePreview('')
   }
 
   if (showSuccess) {

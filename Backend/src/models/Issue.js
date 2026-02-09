@@ -68,6 +68,11 @@ const IssueSchema = new mongoose.Schema(
       enum: ["low", "medium", "high"],
       default: "medium"
     },
+    imageUrl: {
+      type: String,
+      trim: true,
+      default: null
+    },
     createdAt: {
       type: Date,
       default: Date.now

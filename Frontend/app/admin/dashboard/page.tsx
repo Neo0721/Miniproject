@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { LogOut, Menu, X, Users, AlertCircle, CheckCircle, Clock, TrendingUp } from 'lucide-react'
+import { signOut } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
 
 const issuesPerDepartmentData = [
   { department: 'IT', issues: 45 },
@@ -59,8 +62,18 @@ const mockUsers: User[] = [
 ]
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
 
   const stats = [
     { label: 'Total Issues', value: '275', icon: AlertCircle, color: 'bg-amber-100 text-amber-800' },
@@ -88,7 +101,12 @@ export default function AdminDashboard() {
               <span className="font-bold text-primary">Campus Resolver - Admin</span>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+          <Button 
+            onClick={handleLogout}
+            variant="outline" 
+            size="sm" 
+            className="gap-2 bg-transparent"
+          >
             <LogOut className="w-4 h-4" />
             Logout
           </Button>

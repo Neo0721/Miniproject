@@ -2,6 +2,15 @@ const mongoose = require("mongoose");
 
 const UserSchema = new mongoose.Schema(
   {
+    // Firebase reference
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true,
+      required: [true, "Firebase UID is required"]
+    },
+
+    // User info
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -20,16 +29,22 @@ const UserSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
-      match: [/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/, "Please provide a valid phone number"]
+      match: [/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/, "Please provide a valid phone number"],
+      sparse: true
     },
+
+    // Role management (CRITICAL: No trusting frontend)
     role: {
       type: String,
       enum: {
-        values: ["student", "teacher"],
-        message: "Role must be either 'student' or 'teacher'"
+        values: ["student", "teacher", "staff", "admin"],
+        message: "Role must be 'student', 'teacher', 'staff', or 'admin'"
       },
-      required: [true, "Role is required"]
+      required: [true, "Role is required"],
+      default: "student"
     },
+
+    // Role-specific fields
     rollNo: {
       type: String,
       trim: true,
@@ -40,16 +55,19 @@ const UserSchema = new mongoose.Schema(
       trim: true,
       sparse: true
     },
+    staffId: {
+      type: String,
+      trim: true,
+      sparse: true
+    },
     department: {
       type: String,
       trim: true,
-      maxlength: [100, "Department cannot exceed 100 characters"]
-    },
-    firebaseUid: {
-      type: String,
-      unique: true,
+      maxlength: [100, "Department cannot exceed 100 characters"],
       sparse: true
     },
+
+    // Timestamps
     createdAt: {
       type: Date,
       default: Date.now
@@ -62,8 +80,11 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for faster queries
-UserSchema.index({ email: 1 });
+// Indexes for efficient queries
 UserSchema.index({ firebaseUid: 1 });
+UserSchema.index({ email: 1 });
+UserSchema.index({ phone: 1 });
+UserSchema.index({ role: 1 });
+UserSchema.index({ role: 1, createdAt: -1 });
 
 module.exports = mongoose.model("User", UserSchema);

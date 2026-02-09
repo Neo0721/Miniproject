@@ -7,11 +7,11 @@ const authMiddleware = require("../middleware/authMiddleware");
  * @route   POST /api/issues
  * @desc    Create a new issue
  * @access  Protected (requires Firebase ID token)
- * @body    { title, category, location, description, priority? }
+ * @body    { title, category, location, description, priority?, imageBase64? }
  */
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { title, category, location, description, priority } = req.body;
+    const { title, category, location, description, priority, imageBase64 } = req.body;
 
     // Find the user who is reporting the issue
     const user = await User.findOne({ email: req.user.email });
@@ -59,6 +59,11 @@ router.post("/", authMiddleware, async (req, res) => {
       priority: priority || "medium"
     };
 
+    // Add image if provided
+    if (imageBase64) {
+      issueData.imageUrl = imageBase64;
+    }
+
     const issue = await Issue.create(issueData);
 
     // Populate the reportedBy field
@@ -75,6 +80,7 @@ router.post("/", authMiddleware, async (req, res) => {
         description: issue.description,
         status: issue.status,
         priority: issue.priority,
+        imageUrl: issue.imageUrl,
         reportedBy: issue.reportedBy,
         createdAt: issue.createdAt
       }
@@ -217,6 +223,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
         description: issue.description,
         status: issue.status,
         priority: issue.priority,
+        imageUrl: issue.imageUrl,
         reportedBy: issue.reportedBy,
         assignedTo: issue.assignedTo,
         resolution: issue.resolution,
@@ -431,6 +438,7 @@ router.get("/", authMiddleware, async (req, res) => {
         description: issue.description,
         status: issue.status,
         priority: issue.priority,
+        imageUrl: issue.imageUrl,
         reportedBy: issue.reportedBy,
         assignedTo: issue.assignedTo,
         createdAt: issue.createdAt,

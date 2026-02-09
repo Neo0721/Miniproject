@@ -1,6 +1,15 @@
+// MUST load dotenv FIRST, before any other imports
+require("dotenv").config();
+
+// Verify critical environment variables are loaded
+console.log("[ENV LOAD DEBUG]", {
+  PORT: process.env.PORT,
+  FIREBASE_SERVICE_ACCOUNT_PATH: process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
+  MONGO_URI: process.env.MONGO_URI ? "✓ SET" : "✗ MISSING"
+});
+
 const app = require("./app");
 const connectDB = require("./config/db");
-require("dotenv").config();
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || "development";

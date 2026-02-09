@@ -4,9 +4,15 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 /**
  * @route   POST /api/auth/register
- * @desc    Register a new user or retrieve existing user
+ * @desc    Register a new user with Firebase token verification
  * @access  Protected (requires Firebase ID token)
  * @body    { name, email, role, phone?, rollNo?, teacherId?, department? }
+ * @flow
+ *   1. Frontend creates user in Firebase Auth (email + password)
+ *   2. Frontend sends Firebase ID token to backend
+ *   3. Backend verifies token using authMiddleware
+ *   4. Backend saves user to MongoDB with firebaseUid
+ *   5. Prevents duplicates by checking firebaseUid
  */
 router.post("/register", authMiddleware, async (req, res) => {
   try {
@@ -20,9 +26,11 @@ router.post("/register", authMiddleware, async (req, res) => {
       department
     } = req.body;
 
+    // Get email and UID from Firebase token (most reliable source)
     const tokenEmail = req.user.email;
+    const firebaseUid = req.user.uid;
 
-    // Use Firebase email if not provided in body
+    // Use token email if not provided in body
     const email = bodyEmail || tokenEmail;
 
     // Validation
@@ -59,14 +67,14 @@ router.post("/register", authMiddleware, async (req, res) => {
       });
     }
 
-    // Check if user already exists
-    let user = await User.findOne({ email: email.toLowerCase() });
+    // Check if user already exists by firebaseUid (prevents duplicates)
+    let user = await User.findOne({ firebaseUid });
 
     if (user) {
-      // Return existing user
+      // User already registered - return existing user
       return res.status(200).json({
         success: true,
-        message: "User already exists",
+        message: "User already registered",
         user: {
           _id: user._id,
           name: user.name,
@@ -81,12 +89,12 @@ router.post("/register", authMiddleware, async (req, res) => {
       });
     }
 
-    // Create new user
+    // Create new user with Firebase UID
     const userData = {
       name: name.trim(),
       email: email.toLowerCase(),
       role,
-      firebaseUid: req.user.uid,
+      firebaseUid, // Link to Firebase Auth
       phone: phone ? phone.trim() : undefined,
       department: department ? department.trim() : undefined
     };
@@ -104,6 +112,8 @@ router.post("/register", authMiddleware, async (req, res) => {
     );
 
     user = await User.create(userData);
+
+    console.log(`✅ New user registered: ${email} (${role})`);
 
     return res.status(201).json({
       success: true,
@@ -155,13 +165,77 @@ router.post("/register", authMiddleware, async (req, res) => {
 });
 
 /**
+ * @route   POST /api/auth/login
+ * @desc    Login user and verify they exist in database
+ * @access  Protected (requires Firebase ID token)
+ * @flow
+ *   1. Frontend authenticates with Firebase (email + password)
+ *   2. Frontend gets Firebase ID token
+ *   3. Frontend sends token to backend
+ *   4. Backend verifies token using authMiddleware
+ *   5. Backend checks if user exists in MongoDB
+ *   6. If exists → allow login, return user data
+ *   7. If not → return error asking to register first
+ */
+router.post("/login", authMiddleware, async (req, res) => {
+  try {
+    const firebaseUid = req.user.uid;
+    const email = req.user.email;
+
+    // Check if user exists in database
+    const user = await User.findOne({ firebaseUid });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found. Please register first.",
+        error: "USER_NOT_FOUND",
+        actionRequired: "REGISTER"
+      });
+    }
+
+    console.log(`✅ User login verified: ${email}`);
+
+    return res.json({
+      success: true,
+      message: "Login successful",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        rollNo: user.rollNo,
+        teacherId: user.teacherId,
+        department: user.department,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error during login",
+      error: error.message
+    });
+  }
+});
+
+/**
  * @route   GET /api/auth/verify
  * @desc    Verify if token is valid and return user info
  * @access  Protected (requires Firebase ID token)
+ * @flow
+ *   1. Frontend sends Authorization: Bearer <token> header
+ *   2. Backend verifies token using authMiddleware
+ *   3. Backend fetches user data from MongoDB
+ *   4. Returns user info if exists, error if not found
  */
 router.get("/verify", authMiddleware, async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.user.email });
+    const firebaseUid = req.user.uid;
+
+    const user = await User.findOne({ firebaseUid });
 
     if (!user) {
       return res.status(404).json({
@@ -173,7 +247,7 @@ router.get("/verify", authMiddleware, async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Token verified",
+      message: "Token verified and user found",
       user: {
         _id: user._id,
         name: user.name,
@@ -191,6 +265,33 @@ router.get("/verify", authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error verifying token",
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout endpoint (mainly for cleanup on backend if needed)
+ * @access  Protected (requires Firebase ID token)
+ * @note    Frontend should also call Firebase signOut()
+ */
+router.post("/logout", authMiddleware, async (req, res) => {
+  try {
+    // Note: Firebase handles logout on frontend
+    // This endpoint is mainly for backend session cleanup if needed
+    
+    console.log(`✅ User logout: ${req.user.email}`);
+
+    return res.json({
+      success: true,
+      message: "Logout successful"
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error during logout",
       error: error.message
     });
   }
