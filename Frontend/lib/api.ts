@@ -121,6 +121,7 @@ export async function createIssue(issueData: {
   location: string;
   description: string;
   priority?: "low" | "medium" | "high";
+  imageBase64?: string;
 }) {
   return apiCall("/api/issues", {
     method: "POST",

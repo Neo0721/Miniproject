@@ -7,7 +7,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       unique: true,
       sparse: true,
-      required: [true, "Firebase UID is required"]
+      required: false // Optional for staff/admin accounts created by admins
     },
 
     // User info

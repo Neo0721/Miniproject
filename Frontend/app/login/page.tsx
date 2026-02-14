@@ -63,9 +63,15 @@ export default function LoginPage() {
         return
       }
 
-      // Step 3: Redirect based on role
+      // Step 3: Store role and redirect based on role
       const role = result.data?.role || 'student'
-      const dashboardRoute = role === 'student' ? '/dashboard/student' : '/dashboard/teacher'
+      try {
+        localStorage.setItem('role', role)
+      } catch (e) {
+        console.warn('Could not save role to localStorage')
+      }
+      
+      const dashboardRoute = role === 'admin' ? '/admin/dashboard' : role === 'staff' ? '/staff/dashboard' : role === 'teacher' ? '/dashboard/teacher' : '/dashboard/student'
       router.push(dashboardRoute)
     } catch (error: any) {
       console.error('Login error:', error)

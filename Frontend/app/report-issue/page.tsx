@@ -265,6 +265,46 @@ export default function ReportIssuePage() {
               {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
             </div>
 
+            <div>
+              <label className="block text-sm font-semibold text-foreground mb-2">Attach Image (Optional)</label>
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition cursor-pointer bg-muted/30">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  disabled={isLoading}
+                  className="hidden"
+                  id="image-input"
+                />
+                <label htmlFor="image-input" className="cursor-pointer block">
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <p className="text-sm font-medium text-foreground">Click to upload or drag and drop</p>
+                    <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 5MB</p>
+                  </div>
+                </label>
+              </div>
+
+              {imagePreview && (
+                <div className="mt-4 relative">
+                  <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    disabled={isLoading}
+                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <p className="text-xs text-muted-foreground mt-2">{selectedImage?.name} ({((selectedImage?.size || 0) / 1024 / 1024).toFixed(2)} MB)</p>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-4">
               <Button
                 type="submit"

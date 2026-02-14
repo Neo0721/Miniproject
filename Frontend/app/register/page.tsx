@@ -52,19 +52,7 @@ export default function RegisterRoleSelection() {
               </Card>
             </Link>
 
-            {/* Staff Registration */}
-            <Link href="/register/staff">
-              <Card className="p-8 cursor-pointer hover:shadow-lg hover:border-amber-500 transition-all h-full flex flex-col items-center text-center group md:col-span-2">
-                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-amber-200 transition-colors">
-                  <Users className="w-8 h-8 text-amber-700" />
-                </div>
-                <h2 className="text-2xl font-bold text-foreground mb-3">Staff</h2>
-                <p className="text-muted-foreground mb-6 flex-1">
-                  Manage and resolve campus issues, handle maintenance requests, and track departmental performance
-                </p>
-                <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white">Create Staff Account</Button>
-              </Card>
-            </Link>
+
           </div>
 
           <div className="mt-8 text-center">

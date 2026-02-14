@@ -297,4 +297,104 @@ router.post("/logout", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @route   POST /api/auth/create-staff-admin
+ * @desc    Create a staff or admin account (for admin use only)
+ * @access  Protected - verify Firebase token first (admin only)
+ * @note    This is for creating staff/admin accounts without Firebase registration
+ * @body    { name, email, role, phone?, department? }
+ */
+router.post("/create-staff-admin", authMiddleware, async (req, res) => {
+  try {
+    const {
+      name,
+      email: bodyEmail,
+      role,
+      phone,
+      department
+    } = req.body;
+
+    // Validation
+    if (!name || !bodyEmail || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and role are required",
+        error: "VALIDATION_ERROR"
+      });
+    }
+
+    if (!["staff", "admin"].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Role must be 'staff' or 'admin'",
+        error: "INVALID_ROLE"
+      });
+    }
+
+    const email = bodyEmail.toLowerCase();
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+
+    if (user) {
+      return res.status(409).json({
+        success: false,
+        message: "User with this email already exists",
+        error: "DUPLICATE_ENTRY"
+      });
+    }
+
+    // Create user without Firebase UID (for staff/admin accounts managed by admins)
+    const userData = {
+      name: name.trim(),
+      email,
+      role,
+      phone: phone ? phone.trim() : undefined,
+      department: department ? department.trim() : undefined,
+      firebaseUid: null // Staff/admin created by admin may not have Firebase account
+    };
+
+    // Remove undefined values
+    Object.keys(userData).forEach(
+      key => userData[key] === undefined && delete userData[key]
+    );
+
+    user = await User.create(userData);
+
+    console.log(`✅ New ${role} account created: ${email}`);
+
+    return res.status(201).json({
+      success: true,
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully`,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        department: user.department,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    console.error("Create staff/admin error:", error);
+
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(409).json({
+        success: false,
+        message: `A user with this ${field} already exists`,
+        error: "DUPLICATE_ENTRY",
+        field
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Error creating staff/admin account",
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
