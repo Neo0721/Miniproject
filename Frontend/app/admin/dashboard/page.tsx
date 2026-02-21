@@ -107,7 +107,7 @@ export default function AdminDashboard() {
 
   const loadIssues = async (withLoader = false) => {
     if (withLoader) setLoading(true)
-    const data = await fetchIssues()
+    const data = await fetchIssues(1000)
     setIssues(data)
     if (withLoader) setLoading(false)
   }
@@ -677,9 +677,8 @@ export default function AdminDashboard() {
                         setBuildingFilter((prev) => (prev === zone.building ? 'all' : zone.building))
                         setFloorFilter('all')
                       }}
-                      className={`absolute rounded-xl border text-left transition hover:scale-[1.01] ${
-                        active ? 'border-primary ring-2 ring-primary/40' : 'border-slate-400/50'
-                      }`}
+                      className={`absolute rounded-xl border text-left transition hover:scale-[1.01] ${active ? 'border-primary ring-2 ring-primary/40' : 'border-slate-400/50'
+                        }`}
                       style={{
                         left: `${zone.x}%`,
                         top: `${zone.y}%`,

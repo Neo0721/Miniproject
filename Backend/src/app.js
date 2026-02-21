@@ -16,8 +16,8 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -33,6 +33,10 @@ app.get("/", (_, res) => {
     version: "1.0.0",
     status: "healthy"
   });
+});
+
+app.get("/api/debug", (req, res) => {
+  res.json({ ok: true, message: "API is reachable" });
 });
 
 // API Routes

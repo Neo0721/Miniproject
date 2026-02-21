@@ -81,9 +81,6 @@ const UserSchema = new mongoose.Schema(
 );
 
 // Indexes for efficient queries
-UserSchema.index({ firebaseUid: 1 });
-UserSchema.index({ email: 1 });
-UserSchema.index({ phone: 1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ role: 1, createdAt: -1 });
 

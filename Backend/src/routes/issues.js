@@ -11,7 +11,21 @@ const authMiddleware = require("../middleware/authMiddleware");
  */
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { title, category, location, description, priority, imageBase64 } = req.body;
+    const {
+      title,
+      category,
+      location,
+      description,
+      priority,
+      imageBase64,
+      building,
+      floor,
+      room,
+      tags,
+      timetableImpact,
+      attachments,
+      assetId
+    } = req.body;
 
     // Find the user who is reporting the issue
     const user = await User.findOne({ email: req.user.email });
@@ -39,7 +53,16 @@ router.post("/", authMiddleware, async (req, res) => {
       "Library",
       "Infrastructure",
       "Maintenance",
-      "Other"
+      "Other",
+      "IT",
+      "Canteen",
+      "Labs",
+      "Office",
+      "Facilities",
+      "Security",
+      "Mechanical",
+      "Computer Science",
+      "Administration"
     ];
 
     if (!validCategories.includes(category)) {
@@ -55,16 +78,37 @@ router.post("/", authMiddleware, async (req, res) => {
       category: category.trim(),
       location: location.trim(),
       description: description.trim(),
-      reportedBy: user._id,
-      priority: priority || "medium"
+      reportedBy: new (require("mongoose")).Types.ObjectId(user._id),
+      priority: priority || "medium",
+      department: (req.body.department || category).trim(),
+      building: building ? building.trim() : undefined,
+      floor: floor ? floor.trim() : undefined,
+      room: room ? room.trim() : undefined,
+      tags: Array.isArray(tags) ? tags : [],
+      timetableImpact: timetableImpact === true || timetableImpact === 'true',
+      attachments: Array.isArray(attachments) ? attachments.map(a => ({
+        name: a.name,
+        type: a.type,
+        size: a.size,
+        dataUrl: a.dataUrl,
+        uploadedAt: a.uploadedAt || new Date()
+      })) : [],
+      assetId: assetId ? assetId.trim() : undefined
     };
 
     // Add image if provided
     if (imageBase64) {
       issueData.imageUrl = imageBase64;
+    } else if (issueData.attachments.length > 0) {
+      // Fallback: use first attachment as the primary imageUrl
+      issueData.imageUrl = issueData.attachments[0].dataUrl;
     }
 
     const issue = await Issue.create(issueData);
+
+    // Trigger dynamic notifications (Non-blocking)
+    const NotificationService = require("../services/NotificationService");
+    NotificationService.triggerNewIssueAlert(issue);
 
     // Populate the reportedBy field
     await issue.populate("reportedBy", "name email role department");
@@ -81,13 +125,20 @@ router.post("/", authMiddleware, async (req, res) => {
         status: issue.status,
         priority: issue.priority,
         imageUrl: issue.imageUrl,
+        attachments: issue.attachments,
         reportedBy: issue.reportedBy,
+        building: issue.building,
+        floor: issue.floor,
+        room: issue.room,
+        tags: issue.tags,
+        timetableImpact: issue.timetableImpact,
+        assetId: issue.assetId,
+        department: issue.department,
         createdAt: issue.createdAt
       }
     });
   } catch (error) {
     console.error("Create issue error:", error);
-
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors)
         .map(err => err.message)
@@ -160,6 +211,8 @@ router.get("/my", authMiddleware, async (req, res) => {
       .skip(skip)
       .limit(limitNum);
 
+    console.log(`[BACKEND DEBUG] Found ${issues.length} issues for user ${user.email}`);
+
     return res.json({
       success: true,
       issues: issues.map(issue => ({
@@ -173,9 +226,25 @@ router.get("/my", authMiddleware, async (req, res) => {
         reportedBy: issue.reportedBy,
         assignedTo: issue.assignedTo,
         resolution: issue.resolution,
+        building: issue.building,
+        floor: issue.floor,
+        room: issue.room,
+        tags: issue.tags,
+        timetableImpact: issue.timetableImpact,
+        assetId: issue.assetId,
+        department: issue.department,
+        attachments: issue.attachments,
         createdAt: issue.createdAt,
         updatedAt: issue.updatedAt,
-        resolvedAt: issue.resolvedAt
+        resolvedAt: issue.resolvedAt,
+        rating: issue.rating,
+        resolutionEvidence: issue.resolutionEvidence,
+        comments: issue.comments,
+        statusUpdates: issue.statusUpdates,
+        reopenedCount: issue.reopenedCount,
+        canReopenUntil: issue.canReopenUntil,
+        escalated: issue.escalated,
+        escalatedAt: issue.escalatedAt
       })),
       pagination: {
         total,
@@ -227,9 +296,26 @@ router.get("/:id", authMiddleware, async (req, res) => {
         reportedBy: issue.reportedBy,
         assignedTo: issue.assignedTo,
         resolution: issue.resolution,
+        building: issue.building,
+        floor: issue.floor,
+        room: issue.room,
+        tags: issue.tags,
+        timetableImpact: issue.timetableImpact,
+        assetId: issue.assetId,
+        department: issue.department,
+        attachments: issue.attachments,
         createdAt: issue.createdAt,
         updatedAt: issue.updatedAt,
-        resolvedAt: issue.resolvedAt
+        resolvedAt: issue.resolvedAt,
+        rating: issue.rating,
+        resolutionEvidence: issue.resolutionEvidence,
+        comments: issue.comments,
+        statusUpdates: issue.statusUpdates,
+        internalNotes: (req.user.role === 'staff' || req.user.role === 'admin') ? issue.internalNotes : [],
+        reopenedCount: issue.reopenedCount,
+        canReopenUntil: issue.canReopenUntil,
+        escalated: issue.escalated,
+        escalatedAt: issue.escalatedAt
       }
     });
   } catch (error) {
@@ -316,6 +402,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
         reportedBy: issue.reportedBy,
         assignedTo: issue.assignedTo,
         resolution: issue.resolution,
+        department: issue.department,
         createdAt: issue.createdAt,
         updatedAt: issue.updatedAt,
         resolvedAt: issue.resolvedAt
@@ -338,6 +425,138 @@ router.put("/:id", authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error updating issue",
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   PATCH /api/issues/:id
+ * @desc    Action-based partial update (status, assign, comment, evidence, etc.)
+ * @access  Protected
+ */
+router.patch("/:id", authMiddleware, async (req, res) => {
+  try {
+    const { action, ...payload } = req.body;
+    const issue = await Issue.findById(req.params.id);
+
+    if (!issue) {
+      return res.status(404).json({ success: false, message: "Issue not found" });
+    }
+
+    const user = await User.findOne({ email: req.user.email });
+    const who = payload.by || user?.name || req.user.email;
+
+    switch (action) {
+      case "status":
+        if (payload.status) {
+          // Normalize status from frontend (in-progress) to backend (in_progress)
+          const normalizedStatus = payload.status === "in-progress" ? "in_progress" : payload.status;
+          issue.status = normalizedStatus;
+          issue.statusUpdates.push({
+            status: normalizedStatus,
+            message: payload.message || `Status changed to ${normalizedStatus}`,
+            by: who
+          });
+          if (normalizedStatus === "resolved") {
+            issue.resolvedAt = new Date();
+          }
+        }
+        break;
+
+      case "assign":
+        if (payload.assignee) {
+          issue.assignedTo = payload.assignee;
+        }
+        break;
+
+      case "comment":
+        if (payload.message) {
+          issue.comments.push({
+            author: who,
+            role: payload.role || user?.role || "student",
+            message: payload.message
+          });
+        }
+        break;
+
+      case "evidence":
+        issue.resolutionEvidence = {
+          checklist: payload.checklist,
+          afterAttachments: payload.afterAttachments || [],
+          note: payload.note,
+          updatedAt: new Date()
+        };
+        break;
+
+      case "internal-note":
+        if (payload.message) {
+          issue.internalNotes.push({
+            author: who,
+            message: payload.message
+          });
+        }
+        break;
+
+      case "edit":
+        // Allow updating metadata fields
+        const allowedFields = [
+          "title", "description", "category", "subCategory", "department",
+          "location", "building", "floor", "room", "assetId", "priority", "tags", "timetableImpact"
+        ];
+        allowedFields.forEach(field => {
+          if (payload[field] !== undefined) {
+            issue[field] = payload[field];
+          }
+        });
+        break;
+
+      case "reopen":
+        issue.status = "pending";
+        issue.reopenedCount = (issue.reopenedCount || 0) + 1;
+        issue.reopenReasonCategory = payload.reasonCategory;
+        issue.statusUpdates.push({
+          status: "pending",
+          message: payload.message || "Issue reopened",
+          by: who
+        });
+        issue.resolvedAt = null;
+        break;
+
+      case "rate":
+        issue.rating = {
+          score: payload.score,
+          feedback: payload.feedback,
+          by: who,
+          ratedAt: new Date()
+        };
+        break;
+
+      case "resolution-feedback":
+        issue.resolutionConfirmation = payload.value;
+        issue.resolutionConfirmationAt = new Date();
+        break;
+
+      default:
+        return res.status(400).json({ success: false, message: `Unknown action: ${action}` });
+    }
+
+    await issue.save();
+
+    // Populate and return the full issue
+    await issue.populate("reportedBy", "name email role department");
+    await issue.populate("assignedTo", "name email role department");
+
+    return res.json({
+      success: true,
+      message: `Action ${action} completed successfully`,
+      issue
+    });
+  } catch (error) {
+    console.error("PATCH issue error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error processing issue action",
       error: error.message
     });
   }
@@ -441,8 +660,21 @@ router.get("/", authMiddleware, async (req, res) => {
         imageUrl: issue.imageUrl,
         reportedBy: issue.reportedBy,
         assignedTo: issue.assignedTo,
+        building: issue.building,
+        floor: issue.floor,
+        room: issue.room,
+        tags: issue.tags,
+        timetableImpact: issue.timetableImpact,
+        assetId: issue.assetId,
+        department: issue.department,
+        attachments: issue.attachments,
         createdAt: issue.createdAt,
-        updatedAt: issue.updatedAt
+        updatedAt: issue.updatedAt,
+        rating: issue.rating,
+        resolutionEvidence: issue.resolutionEvidence,
+        comments: issue.comments,
+        statusUpdates: issue.statusUpdates,
+        internalNotes: (req.user.role === 'staff' || req.user.role === 'admin') ? issue.internalNotes : []
       })),
       pagination: {
         total,

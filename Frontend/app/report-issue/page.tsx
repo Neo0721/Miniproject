@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import IssueAssistant, { type IssueAssistantSuggestion } from '@/components/issue-assistant'
 import { createIssue, fetchIssues, type Issue, type IssueAttachment, type IssuePriority } from '@/lib/api'
-import { BUILDING_FLOORS, CAMPUS_BUILDINGS, DEPARTMENT_CATEGORIES, ISSUE_TAGS, ISSUE_TEMPLATES } from '@/lib/issue-config'
+import { ACADEMIC_DEPARTMENTS, BUILDING_FLOORS, CAMPUS_BUILDINGS, DEPARTMENT_CATEGORIES, ISSUE_TAGS, ISSUE_TEMPLATES } from '@/lib/issue-config'
 
 interface FormErrors {
   title?: string
@@ -23,7 +23,7 @@ interface FormErrors {
 
 interface ReportFormData {
   title: string
-  department: string
+  department: string // This will map to both category and department in backend
   subCategory: string
   building: (typeof CAMPUS_BUILDINGS)[number]
   floor: string
@@ -118,7 +118,7 @@ export default function ReportIssuePage() {
   }, [allIssues, formData.title, formData.description, formData.building, formData.floor, formData.room])
 
   useEffect(() => {
-    ;(async () => {
+    ; (async () => {
       const data = await fetchIssues()
       setAllIssues(data)
     })()
@@ -201,10 +201,10 @@ export default function ReportIssuePage() {
 
   const applyAssistantSuggestion = (suggestion: IssueAssistantSuggestion) => {
     setFormData((prev) => {
-      const nextDepartment = suggestion.department || prev.department
-      const allowedSubCats = DEPARTMENT_CATEGORIES[nextDepartment] || []
+      const nextDept = suggestion.department || prev.department
+      const allowedSubCats = DEPARTMENT_CATEGORIES[nextDept] || []
       const nextSubCategory =
-        nextDepartment === 'Canteen'
+        nextDept === 'Canteen'
           ? ''
           : suggestion.subCategory && allowedSubCats.includes(suggestion.subCategory)
             ? suggestion.subCategory
@@ -212,7 +212,7 @@ export default function ReportIssuePage() {
 
       return {
         ...prev,
-        department: nextDepartment,
+        department: nextDept,
         subCategory: nextSubCategory
       }
     })
@@ -273,7 +273,7 @@ export default function ReportIssuePage() {
           </div>
 
           <div className="space-y-3">
-            <Button onClick={() => router.push('/dashboard/student')} className="w-full bg-primary hover:bg-primary/90">
+            <Button onClick={() => router.push(typeof window !== 'undefined' && localStorage.getItem('role') === 'teacher' ? '/dashboard/teacher' : '/dashboard/student')} className="w-full bg-primary hover:bg-primary/90">
               View My Issues
             </Button>
             <Button onClick={() => router.push('/report-issue')} variant="outline" className="w-full">
@@ -289,7 +289,7 @@ export default function ReportIssuePage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/dashboard/student" className="flex items-center gap-2 hover:opacity-80 transition mb-4">
+          <Link href={typeof window !== 'undefined' && localStorage.getItem('role') === 'teacher' ? '/dashboard/teacher' : '/dashboard/student'} className="flex items-center gap-2 hover:opacity-80 transition mb-4">
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Back to Dashboard</span>
           </Link>
@@ -330,9 +330,9 @@ export default function ReportIssuePage() {
               {errors.title && <p className="text-red-600 text-sm mt-1">{errors.title}</p>}
             </div>
 
-            <div className={`grid ${formData.department === 'Canteen' ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-6`}>
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">Department</label>
+                <label className="block text-sm font-semibold text-foreground mb-2">Department / Category</label>
                 <select
                   value={formData.department}
                   onChange={(e) => onDepartmentChange(e.target.value)}
@@ -344,24 +344,25 @@ export default function ReportIssuePage() {
                     </option>
                   ))}
                 </select>
+                {errors.department && <p className="text-red-600 text-sm mt-1">{errors.department}</p>}
               </div>
 
               {formData.department !== 'Canteen' && (
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">Sub-category</label>
-                <select
-                  value={formData.subCategory}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, subCategory: e.target.value }))}
-                  className={`w-full px-4 py-2 border rounded-lg bg-background text-foreground ${errors.subCategory ? 'border-red-500' : 'border-border'}`}
-                >
-                  {subCategories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-                {errors.subCategory && <p className="text-red-600 text-sm mt-1">{errors.subCategory}</p>}
-              </div>
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Sub-category</label>
+                  <select
+                    value={formData.subCategory}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, subCategory: e.target.value }))}
+                    className={`w-full px-4 py-2 border rounded-lg bg-background text-foreground ${errors.subCategory ? 'border-red-500' : 'border-border'}`}
+                  >
+                    {subCategories.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.subCategory && <p className="text-red-600 text-sm mt-1">{errors.subCategory}</p>}
+                </div>
               )}
             </div>
 
@@ -492,9 +493,8 @@ export default function ReportIssuePage() {
                       key={tag}
                       type="button"
                       onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1 rounded-full text-sm border transition ${
-                        active ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted'
-                      }`}
+                      className={`px-3 py-1 rounded-full text-sm border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted'
+                        }`}
                     >
                       {tag}
                     </button>

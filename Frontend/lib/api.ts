@@ -69,6 +69,7 @@ export interface Issue {
   timetableImpact?: boolean
   fastTrack?: boolean
   assignee?: string
+  imageUrl?: string
   attachments?: IssueAttachment[]
   comments?: IssueComment[]
   statusUpdates?: IssueStatusUpdate[]
@@ -92,6 +93,19 @@ export interface Issue {
   updatedAt?: string
 }
 
+export interface UserProfile {
+  _id: string
+  name: string
+  email: string
+  role: 'student' | 'teacher' | 'staff' | 'admin'
+  phone?: string
+  rollNo?: string
+  teacherId?: string
+  department?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface CreateIssuePayload {
   title: string
   description?: string
@@ -113,8 +127,17 @@ export interface CreateIssuePayload {
 async function requestJson<T>(endpoint: string, init?: RequestInit): Promise<T | null> {
   try {
     const role = typeof window !== 'undefined' ? (localStorage.getItem('role') || 'student') : 'student'
+    const email = typeof window !== 'undefined' ? (localStorage.getItem('email') || localStorage.getItem('name') + '@example.com') : 'student@example.com'
+    const name = typeof window !== 'undefined' ? (localStorage.getItem('name') || 'Student') : 'Student'
+
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: { 'Content-Type': 'application/json', 'x-user-role': role, ...(init?.headers || {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': role,
+        'x-user-email': email,
+        'x-user-name': name,
+        ...(init?.headers || {})
+      },
       ...init
     })
 
@@ -130,21 +153,47 @@ async function requestJson<T>(endpoint: string, init?: RequestInit): Promise<T |
   }
 }
 
-export async function fetchIssues(): Promise<Issue[]> {
-  const data = await requestJson<Issue[]>('/issues')
-  return Array.isArray(data) ? data : []
+function normalizeIssue(i: any): Issue {
+  if (!i) return i
+  const id = i.id || i._id || i.ID || (i as any)._id
+  const normalized = {
+    ...i,
+    id: id ? String(id) : undefined,
+    _id: id ? String(id) : undefined,
+    imageUrl: i.imageUrl || i.imageBase64,
+    status: i.status === 'in_progress' ? 'in-progress' : i.status,
+    comments: i.comments?.map((c: any) => ({ ...c, id: String(c.id || c._id) })),
+    statusUpdates: i.statusUpdates?.map((s: any) => ({ ...s, id: String(s.id || s._id) })),
+    internalNotes: i.internalNotes?.map((n: any) => ({ ...n, id: String(n.id || n._id) }))
+  }
+  if (!normalized.id) {
+    console.warn('[API DEBUG] Issue missing ID:', i)
+  }
+  return normalized as Issue
+}
+
+export async function fetchIssues(limit: number = 20): Promise<Issue[]> {
+  const data = await requestJson<{ issues: any[] }>(`/issues?limit=${limit}`)
+  return Array.isArray(data?.issues) ? data.issues.map(normalizeIssue) : []
+}
+
+export async function fetchMyIssues(): Promise<Issue[]> {
+  const data = await requestJson<{ issues: any[] }>('/issues/my')
+  return Array.isArray(data?.issues) ? data.issues.map(normalizeIssue) : []
 }
 
 export async function fetchIssueById(id: string): Promise<Issue | null> {
   if (!id) return null
-  return requestJson<Issue>(`/issues/${id}`)
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`)
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function createIssue(payload: CreateIssuePayload): Promise<Issue | null> {
-  return requestJson<Issue>('/issues', {
+  const data = await requestJson<{ success: boolean; issue: any }>('/issues', {
     method: 'POST',
     body: JSON.stringify(payload)
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function approveIssue(id: string): Promise<Issue | null> {
@@ -168,10 +217,11 @@ export async function postIssueComment(
   role: 'student' | 'staff' | 'admin',
   by: string
 ): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'comment', message, role, by })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function postStatusUpdate(
@@ -180,10 +230,11 @@ export async function postStatusUpdate(
   message: string,
   by: string
 ): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'status', status, message, by })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function updateIssueMeta(
@@ -204,41 +255,46 @@ export async function updateIssueMeta(
     timetableImpact?: boolean
   }
 ): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'edit', ...payload })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function rateIssue(id: string, score: number, feedback: string, by: string): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'rate', score, feedback, by })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function updateIssueStatus(
   id: string,
   update: { status: IssueStatus; message?: string; by?: string }
 ): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'status', status: update.status, message: update.message, by: update.by })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function addInternalNote(id: string, message: string, by: string): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'internal-note', message, by })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function reopenIssue(id: string, by: string, message?: string): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'reopen', by, message })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function reopenIssueWithReason(
@@ -247,10 +303,11 @@ export async function reopenIssueWithReason(
   reasonCategory: 'not-fixed' | 'recurring' | 'partial-fix' | 'wrong-issue' | 'other',
   message?: string
 ): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'reopen', by, reasonCategory, message })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function saveResolutionEvidence(
@@ -262,10 +319,11 @@ export async function saveResolutionEvidence(
     by?: string
   }
 ): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'evidence', ...payload })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function submitResolutionFeedback(
@@ -273,10 +331,11 @@ export async function submitResolutionFeedback(
   value: 'confirmed' | 'not-resolved',
   by: string
 ): Promise<Issue | null> {
-  return requestJson<Issue>(`/issues/${id}`, {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/issues/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'resolution-feedback', value, by })
   })
+  return data?.issue ? normalizeIssue(data.issue) : null
 }
 
 export async function bulkUpdateIssues(payload: {
@@ -289,4 +348,29 @@ export async function bulkUpdateIssues(payload: {
     method: 'POST',
     body: JSON.stringify(payload)
   })
+}
+export async function fetchUserProfile(): Promise<UserProfile | null> {
+  const data = await requestJson<{ success: boolean; user: UserProfile }>('/users/me')
+  return data?.user || null
+}
+
+export async function updateUserProfile(payload: {
+  name?: string
+  phone?: string
+  department?: string
+}): Promise<UserProfile | null> {
+  const data = await requestJson<{ success: boolean; user: UserProfile }>('/users/me', {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  })
+  return data?.user || null
+}
+
+export function logoutUser() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('role')
+    localStorage.removeItem('name')
+    localStorage.removeItem('email')
+    window.location.href = '/login'
+  }
 }

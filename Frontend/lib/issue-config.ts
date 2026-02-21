@@ -95,6 +95,7 @@ export interface Issue {
   timetableImpact: boolean
   fastTrack: boolean
   assignee?: string
+  imageUrl?: string
   attachments: IssueAttachment[]
   comments: IssueComment[]
   statusUpdates: IssueStatusUpdate[]
@@ -119,6 +120,9 @@ export const DEPARTMENT_CATEGORIES: Record<string, string[]> = {
   Hostel: ['Room Maintenance', 'Mess', 'Water Supply', 'Security'],
   Library: ['Book Availability', 'Seating', 'Noise', 'Systems'],
   Security: ['Gate Access', 'CCTV', 'Patrol', 'Emergency'],
+  Mechanical: ['General', 'Lab Equipment', 'Workshop'],
+  'Computer Science': ['General', 'Lab Systems', 'Software Licensing'],
+  Administration: ['General', 'Office Supplies', 'Documentation'],
   Canteen: []
 }
 
@@ -259,10 +263,10 @@ export function normalizeIssue(raw: Partial<Issue> & Record<string, unknown>): I
     resolutionConfirmationAt: typeof raw.resolutionConfirmationAt === 'string' ? raw.resolutionConfirmationAt : undefined,
     reopenReasonCategory:
       raw.reopenReasonCategory === 'not-fixed' ||
-      raw.reopenReasonCategory === 'recurring' ||
-      raw.reopenReasonCategory === 'partial-fix' ||
-      raw.reopenReasonCategory === 'wrong-issue' ||
-      raw.reopenReasonCategory === 'other'
+        raw.reopenReasonCategory === 'recurring' ||
+        raw.reopenReasonCategory === 'partial-fix' ||
+        raw.reopenReasonCategory === 'wrong-issue' ||
+        raw.reopenReasonCategory === 'other'
         ? raw.reopenReasonCategory
         : undefined,
     rating: typeof raw.rating === 'object' && raw.rating !== null ? (raw.rating as IssueRating) : undefined,
@@ -271,6 +275,7 @@ export function normalizeIssue(raw: Partial<Issue> & Record<string, unknown>): I
     reopenedCount: typeof raw.reopenedCount === 'number' ? raw.reopenedCount : 0,
     canReopenUntil: typeof raw.canReopenUntil === 'string' ? raw.canReopenUntil : undefined,
     resolvedAt: typeof raw.resolvedAt === 'string' ? raw.resolvedAt : undefined,
+    imageUrl: typeof raw.imageUrl === 'string' ? raw.imageUrl : typeof raw.imageBase64 === 'string' ? raw.imageBase64 : undefined,
     updatedAt
   }
 }

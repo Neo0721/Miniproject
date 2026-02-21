@@ -41,7 +41,7 @@ export default function StaffDashboard() {
 
   const load = async (withLoader = false) => {
     if (withLoader) setLoading(true)
-    const data = await fetchIssues()
+    const data = await fetchIssues(1000)
     setIssues(data)
     if (withLoader) setLoading(false)
   }
@@ -200,14 +200,24 @@ export default function StaffDashboard() {
                       <p className="text-xs text-muted-foreground">Assigned: {issue.assignee || 'Unassigned'}</p>
 
                       {issue.status === 'pending' && (
-                        <Button size="sm" variant="outline" onClick={() => void changeStatus(issue, 'in-progress')}>Start Work</Button>
+                        <div className="flex gap-2 underline underline-offset-4">
+                          <Button size="sm" variant="outline" onClick={() => void changeStatus(issue, 'in-progress')}>Start Work</Button>
+                          <Link href={`/issue/${issue.id}`}>
+                            <Button size="sm" variant="ghost">View Details</Button>
+                          </Link>
+                        </div>
                       )}
 
                       {issue.status === 'in-progress' && (
                         <div className="space-y-2">
-                          <Button size="sm" variant="outline" onClick={() => setActiveEvidenceIssue(activeEvidenceIssue === issue.id ? null : issue.id)}>
-                            {activeEvidenceIssue === issue.id ? 'Hide Evidence' : 'Add Evidence & Resolve'}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setActiveEvidenceIssue(activeEvidenceIssue === issue.id ? null : issue.id)}>
+                              {activeEvidenceIssue === issue.id ? 'Hide Evidence' : 'Add Evidence & Resolve'}
+                            </Button>
+                            <Link href={`/issue/${issue.id}`}>
+                              <Button size="sm" variant="ghost">View Details</Button>
+                            </Link>
+                          </div>
 
                           {activeEvidenceIssue === issue.id && (
                             <div className="rounded-md border border-border p-2 space-y-2">
@@ -232,7 +242,12 @@ export default function StaffDashboard() {
                       )}
 
                       {issue.status === 'resolved' && (
-                        <p className="text-xs text-green-600">Quality Score: {issue.resolutionEvidence?.qualityScore || 'N/A'} / 5</p>
+                        <div className="space-y-2">
+                          <p className="text-xs text-green-600">Quality Score: {issue.resolutionEvidence?.qualityScore || 'N/A'} / 5</p>
+                          <Link href={`/issue/${issue.id}`}>
+                            <Button size="sm" variant="ghost" className="p-0 h-auto text-xs">View Details</Button>
+                          </Link>
+                        </div>
                       )}
                     </div>
                   ))}

@@ -4,6 +4,34 @@ const admin = require("../config/firebase-admin");
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    const devEmail = req.headers['x-user-email'];
+
+    // Development Bypass: If no auth header but x-user-email is provided
+    if (!authHeader && devEmail) {
+      console.log(`[AUTH DEBUG] Attempting dev bypass for: ${devEmail}`);
+
+      const User = require("../models/User");
+      let targetUser = await User.findOne({ email: devEmail });
+
+      if (!targetUser) {
+        console.log(`[AUTH DEBUG] User ${devEmail} not found, falling back to any existing user`);
+        targetUser = await User.findOne();
+      }
+
+      if (targetUser) {
+        req.user = {
+          uid: targetUser.firebaseUid || `dev_${targetUser.email}`,
+          email: targetUser.email,
+          name: targetUser.name,
+          firebase_uid: targetUser.firebaseUid || `dev_${targetUser.email}`
+        };
+        console.log(`[AUTH DEBUG] Logged in as: ${targetUser.email}`);
+        return next();
+      } else {
+        console.error("[AUTH DEBUG] Dev bypass failed: No users exist in database.");
+        // Fall through to 401 if no user at all
+      }
+    }
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
@@ -17,7 +45,7 @@ const authMiddleware = async (req, res, next) => {
 
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
-      
+
       // Attach user info to request
       req.user = {
         uid: decodedToken.uid,

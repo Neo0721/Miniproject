@@ -58,6 +58,7 @@ export default function LoginPage() {
       try {
         localStorage.setItem('role', role)
         localStorage.setItem('name', userName)
+        localStorage.setItem('email', email)
       } catch (e) {
         // ignore if running in non-browser environment
       }
