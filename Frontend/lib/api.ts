@@ -1,6 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
 
-export type IssueStatus = 'pending' | 'in-progress' | 'resolved'
+export type IssueStatus = 'pending' | 'in-progress' | 'in_progress' | 'resolved' | 'escalated'
 export type IssuePriority = 'high' | 'medium' | 'low'
 
 export interface IssueAttachment {
@@ -88,22 +88,42 @@ export interface Issue {
   escalated?: boolean
   escalatedAt?: string
   reopenedCount?: number
-  canReopenUntil?: string
+  assignedTo?: string | { _id: string; name: string; department?: string }
+  assignedAt?: string
+  acknowledgedAt?: string
+  slaDeadline?: string
+  reassignmentCount?: number
   resolvedAt?: string
   updatedAt?: string
+  createdAt?: string
+  _id?: string
 }
 
 export interface UserProfile {
   _id: string
   name: string
   email: string
-  role: 'student' | 'teacher' | 'staff' | 'admin'
+  role: 'student' | 'teacher' | 'resolving_staff' | 'staff' | 'admin'
+  status?: 'pending' | 'approved' | null
   phone?: string
   rollNo?: string
   teacherId?: string
   department?: string
   createdAt: string
   updatedAt: string
+  availabilityStatus?: 'available' | 'busy' | 'on_break' | 'offline'
+  currentActiveIssues?: number
+}
+
+export interface StaffMember {
+  _id: string
+  name: string
+  email: string
+  department?: string
+  teacherId?: string
+  role: 'teacher' | 'resolving_staff'
+  status: 'pending' | 'approved'
+  createdAt: string
 }
 
 export interface CreateIssuePayload {
@@ -172,8 +192,29 @@ function normalizeIssue(i: any): Issue {
   return normalized as Issue
 }
 
-export async function fetchIssues(limit: number = 20): Promise<Issue[]> {
-  const data = await requestJson<{ issues: any[] }>(`/issues?limit=${limit}`)
+export interface FetchIssuesFilters {
+  limit?: number
+  page?: number
+  status?: string
+  category?: string
+  department?: string
+  priority?: string
+  escalated?: string
+  assigned?: string
+}
+
+export async function fetchIssues(filters: FetchIssuesFilters = {}): Promise<Issue[]> {
+  const params = new URLSearchParams()
+  if (filters.limit) params.append('limit', filters.limit.toString())
+  if (filters.page) params.append('page', filters.page.toString())
+  if (filters.status) params.append('status', filters.status)
+  if (filters.category) params.append('category', filters.category)
+  if (filters.department) params.append('department', filters.department)
+  if (filters.priority) params.append('priority', filters.priority)
+  if (filters.escalated) params.append('escalated', filters.escalated)
+  if (filters.assigned) params.append('assigned', filters.assigned)
+
+  const data = await requestJson<{ issues: any[] }>(`/issues?${params.toString()}`)
   return Array.isArray(data?.issues) ? data.issues.map(normalizeIssue) : []
 }
 
@@ -344,10 +385,28 @@ export async function bulkUpdateIssues(payload: {
   assignee?: string
   by?: string
 }): Promise<{ updated: number; issues: Issue[] } | null> {
+  // If action is assign, use the new bulk-assign endpoint
+  if (payload.action === 'assign' && payload.assignee) {
+    const result = await requestJson<{ success: boolean; updated: number }>('/issues/bulk-assign', {
+      method: 'PUT',
+      body: JSON.stringify({ issueIds: payload.issueIds, staffId: payload.assignee })
+    })
+    if (result?.success) {
+      return { updated: result.updated, issues: [] } // Note: Backend returns updated count, frontend might expect issues but we'll refetch
+    }
+    return null
+  }
+
   return requestJson<{ updated: number; issues: Issue[] }>('/issues/bulk', {
     method: 'POST',
     body: JSON.stringify(payload)
   })
+}
+
+export async function fetchStaffByDepartment(department?: string): Promise<StaffMember[]> {
+  const url = department ? `/staff?department=${encodeURIComponent(department)}` : '/staff'
+  const data = await requestJson<{ success: boolean; staff: StaffMember[] }>(url)
+  return data?.staff || []
 }
 export async function fetchUserProfile(): Promise<UserProfile | null> {
   const data = await requestJson<{ success: boolean; user: UserProfile }>('/users/me')
@@ -364,6 +423,37 @@ export async function updateUserProfile(payload: {
     body: JSON.stringify(payload)
   })
   return data?.user || null
+}
+
+export async function fetchPendingStaff(): Promise<StaffMember[]> {
+  const data = await requestJson<{ success: boolean; staff: StaffMember[] }>('/admin/pending-staff')
+  return data?.staff || []
+}
+
+export async function approveStaffMember(id: string, role?: string): Promise<StaffMember | null> {
+  const data = await requestJson<{ success: boolean; staff: StaffMember }>(`/admin/approve-staff/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role })
+  })
+  return data?.staff || null
+}
+export async function updateStaffStatus(status: 'available' | 'busy' | 'on_break' | 'offline'): Promise<{ success: boolean; status: string } | null> {
+  return requestJson<{ success: boolean; status: string }>('/staff/status', {
+    method: 'PATCH',
+    body: JSON.stringify({ status })
+  })
+}
+export async function acknowledgeIssue(id: string): Promise<{ success: boolean; issue: Issue } | null> {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/staff/acknowledge/${id}`, {
+    method: 'POST'
+  })
+  return data?.issue ? { success: data.success, issue: normalizeIssue(data.issue) } : null
+}
+export async function staffResolveIssue(id: string): Promise<{ success: boolean; issue: Issue } | null> {
+  const data = await requestJson<{ success: boolean; issue: any }>(`/staff/resolve/${id}`, {
+    method: 'POST'
+  })
+  return data?.issue ? { success: data.success, issue: normalizeIssue(data.issue) } : null
 }
 
 export function logoutUser() {

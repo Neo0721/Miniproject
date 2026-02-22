@@ -1,6 +1,19 @@
 const router = require("express").Router();
 const User = require("../models/User");
+const Staff = require("../models/Staff");
 const authMiddleware = require("../middleware/authMiddleware");
+
+/**
+ * Helper: look up a user by firebaseUid in BOTH collections.
+ * Returns { doc, collection: "User"|"Staff" } or null.
+ */
+async function findByFirebaseUid(firebaseUid) {
+  const user = await User.findOne({ firebaseUid });
+  if (user) return { doc: user, collection: "User" };
+  const staff = await Staff.findOne({ firebaseUid });
+  if (staff) return { doc: staff, collection: "Staff" };
+  return null;
+}
 
 /**
  * @route   POST /api/auth/register
@@ -11,8 +24,8 @@ const authMiddleware = require("../middleware/authMiddleware");
  *   1. Frontend creates user in Firebase Auth (email + password)
  *   2. Frontend sends Firebase ID token to backend
  *   3. Backend verifies token using authMiddleware
- *   4. Backend saves user to MongoDB with firebaseUid
- *   5. Prevents duplicates by checking firebaseUid
+ *   4. Students  → saved to User  collection (role: student)
+ *   5. Teachers  → saved to Staff collection (role: teacher, status: pending)
  */
 router.post("/register", authMiddleware, async (req, res) => {
   try {
@@ -67,14 +80,105 @@ router.post("/register", authMiddleware, async (req, res) => {
       });
     }
 
-    // Check if user already exists by firebaseUid (prevents duplicates)
-    let user = await User.findOne({ firebaseUid });
+    // --- ROUTE BY ROLE ---
+    if (role === "teacher") {
+      // ✅ TEACHER → Staff collection only (NEVER User)
+      let staff = await Staff.findOne({ firebaseUid });
 
-    if (user) {
-      // User already registered - return existing user
-      return res.status(200).json({
+      if (staff) {
+        return res.status(200).json({
+          success: true,
+          message: "Staff already registered",
+          user: {
+            _id: staff._id,
+            name: staff.name,
+            email: staff.email,
+            role: staff.role,
+            status: staff.status,
+            department: staff.department,
+            teacherId: staff.teacherId,
+            createdAt: staff.createdAt
+          }
+        });
+      }
+
+      const staffData = {
+        firebaseUid,
+        name: name.trim(),
+        email: email.toLowerCase(),
+        role: "teacher",
+        status: "pending",
+        phone: phone ? phone.trim() : undefined,
+        department: department ? department.trim() : undefined,
+        teacherId: teacherId ? teacherId.trim() : undefined
+      };
+
+      // Remove undefined values
+      Object.keys(staffData).forEach(
+        key => staffData[key] === undefined && delete staffData[key]
+      );
+
+      staff = await Staff.create(staffData);
+
+      console.log(`✅ New teacher registered (pending): ${email}`);
+
+      return res.status(201).json({
         success: true,
-        message: "User already registered",
+        message: "Teacher account created. Awaiting admin approval.",
+        user: {
+          _id: staff._id,
+          name: staff.name,
+          email: staff.email,
+          role: staff.role,
+          status: staff.status,
+          department: staff.department,
+          teacherId: staff.teacherId,
+          createdAt: staff.createdAt
+        }
+      });
+
+    } else {
+      // ✅ STUDENT → User collection only
+      let user = await User.findOne({ firebaseUid });
+
+      if (user) {
+        return res.status(200).json({
+          success: true,
+          message: "User already registered",
+          user: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            phone: user.phone,
+            rollNo: user.rollNo,
+            department: user.department,
+            createdAt: user.createdAt
+          }
+        });
+      }
+
+      const userData = {
+        name: name.trim(),
+        email: email.toLowerCase(),
+        role,
+        firebaseUid,
+        phone: phone ? phone.trim() : undefined,
+        department: department ? department.trim() : undefined,
+        rollNo: rollNo ? rollNo.trim() : undefined
+      };
+
+      Object.keys(userData).forEach(
+        key => userData[key] === undefined && delete userData[key]
+      );
+
+      user = await User.create(userData);
+
+      console.log(`✅ New student registered: ${email}`);
+
+      return res.status(201).json({
+        success: true,
+        message: "User registered successfully",
         user: {
           _id: user._id,
           name: user.name,
@@ -82,58 +186,15 @@ router.post("/register", authMiddleware, async (req, res) => {
           role: user.role,
           phone: user.phone,
           rollNo: user.rollNo,
-          teacherId: user.teacherId,
           department: user.department,
           createdAt: user.createdAt
         }
       });
     }
 
-    // Create new user with Firebase UID
-    const userData = {
-      name: name.trim(),
-      email: email.toLowerCase(),
-      role,
-      firebaseUid, // Link to Firebase Auth
-      phone: phone ? phone.trim() : undefined,
-      department: department ? department.trim() : undefined
-    };
-
-    // Add role-specific fields
-    if (role === "student") {
-      userData.rollNo = rollNo.trim();
-    } else if (role === "teacher") {
-      userData.teacherId = teacherId.trim();
-    }
-
-    // Remove undefined values
-    Object.keys(userData).forEach(
-      key => userData[key] === undefined && delete userData[key]
-    );
-
-    user = await User.create(userData);
-
-    console.log(`✅ New user registered: ${email} (${role})`);
-
-    return res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        rollNo: user.rollNo,
-        teacherId: user.teacherId,
-        department: user.department,
-        createdAt: user.createdAt
-      }
-    });
   } catch (error) {
     console.error("Registration error:", error);
 
-    // Handle duplicate key error
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
@@ -144,7 +205,6 @@ router.post("/register", authMiddleware, async (req, res) => {
       });
     }
 
-    // Handle validation errors
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors)
         .map(err => err.message)
@@ -172,20 +232,16 @@ router.post("/register", authMiddleware, async (req, res) => {
  *   1. Frontend authenticates with Firebase (email + password)
  *   2. Frontend gets Firebase ID token
  *   3. Frontend sends token to backend
- *   4. Backend verifies token using authMiddleware
- *   5. Backend checks if user exists in MongoDB
- *   6. If exists → allow login, return user data
- *   7. If not → return error asking to register first
+ *   4. Backend checks User first, then Staff
+ *   5. Returns user/staff data including status for teachers
  */
 router.post("/login", authMiddleware, async (req, res) => {
   try {
     const firebaseUid = req.user.uid;
-    const email = req.user.email;
 
-    // Check if user exists in database
-    const user = await User.findOne({ firebaseUid });
+    const result = await findByFirebaseUid(firebaseUid);
 
-    if (!user) {
+    if (!result) {
       return res.status(404).json({
         success: false,
         message: "User not found. Please register first.",
@@ -194,21 +250,24 @@ router.post("/login", authMiddleware, async (req, res) => {
       });
     }
 
-    console.log(`✅ User login verified: ${email}`);
+    const { doc, collection } = result;
+
+    console.log(`✅ ${collection} login verified: ${doc.email}`);
 
     return res.json({
       success: true,
       message: "Login successful",
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        rollNo: user.rollNo,
-        teacherId: user.teacherId,
-        department: user.department,
-        createdAt: user.createdAt
+        _id: doc._id,
+        name: doc.name,
+        email: doc.email,
+        role: doc.role,
+        status: doc.status || null,         // null for students
+        phone: doc.phone,
+        rollNo: doc.rollNo || undefined,
+        teacherId: doc.teacherId || undefined,
+        department: doc.department,
+        createdAt: doc.createdAt
       }
     });
   } catch (error) {
@@ -225,19 +284,14 @@ router.post("/login", authMiddleware, async (req, res) => {
  * @route   GET /api/auth/verify
  * @desc    Verify if token is valid and return user info
  * @access  Protected (requires Firebase ID token)
- * @flow
- *   1. Frontend sends Authorization: Bearer <token> header
- *   2. Backend verifies token using authMiddleware
- *   3. Backend fetches user data from MongoDB
- *   4. Returns user info if exists, error if not found
  */
 router.get("/verify", authMiddleware, async (req, res) => {
   try {
     const firebaseUid = req.user.uid;
 
-    const user = await User.findOne({ firebaseUid });
+    const result = await findByFirebaseUid(firebaseUid);
 
-    if (!user) {
+    if (!result) {
       return res.status(404).json({
         success: false,
         message: "User not found. Please register first.",
@@ -245,19 +299,22 @@ router.get("/verify", authMiddleware, async (req, res) => {
       });
     }
 
+    const { doc } = result;
+
     return res.json({
       success: true,
       message: "Token verified and user found",
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        rollNo: user.rollNo,
-        teacherId: user.teacherId,
-        department: user.department,
-        createdAt: user.createdAt
+        _id: doc._id,
+        name: doc.name,
+        email: doc.email,
+        role: doc.role,
+        status: doc.status || null,
+        phone: doc.phone,
+        rollNo: doc.rollNo || undefined,
+        teacherId: doc.teacherId || undefined,
+        department: doc.department,
+        createdAt: doc.createdAt
       }
     });
   } catch (error) {
@@ -278,9 +335,6 @@ router.get("/verify", authMiddleware, async (req, res) => {
  */
 router.post("/logout", authMiddleware, async (req, res) => {
   try {
-    // Note: Firebase handles logout on frontend
-    // This endpoint is mainly for backend session cleanup if needed
-    
     console.log(`✅ User logout: ${req.user.email}`);
 
     return res.json({
@@ -351,10 +405,9 @@ router.post("/create-staff-admin", authMiddleware, async (req, res) => {
       role,
       phone: phone ? phone.trim() : undefined,
       department: department ? department.trim() : undefined,
-      firebaseUid: null // Staff/admin created by admin may not have Firebase account
+      firebaseUid: null
     };
 
-    // Remove undefined values
     Object.keys(userData).forEach(
       key => userData[key] === undefined && delete userData[key]
     );

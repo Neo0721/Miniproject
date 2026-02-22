@@ -1,19 +1,38 @@
 ﻿'use client'
 
-import React from "react"
-
-import { useState } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
 
 interface FormErrors {
   email?: string
   password?: string
   general?: string
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+
+/**
+ * Role → dashboard path mapping
+ * Pending and Teachers both land on /dashboard/teacher.
+ */
+function getDashboardPath(role: string, status?: string | null): string {
+  if (status === 'pending' || role === 'teacher') {
+    return '/dashboard/teacher'
+  }
+  if (role === 'resolving_staff' || role === 'staff') {
+    return '/staff/dashboard'
+  }
+  if (role === 'admin') {
+    return '/admin/dashboard'
+  }
+  return '/dashboard/student'
 }
 
 export default function LoginPage() {
@@ -27,43 +46,100 @@ export default function LoginPage() {
 
   const validateForm = () => {
     const newErrors: FormErrors = {}
-
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = 'Valid email is required'
     }
-
     if (!password || password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters'
     }
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!validateForm()) return
-
     setIsLoading(true)
+    setErrors({})
 
-    setTimeout(() => {
-      setIsLoading(false)
-      let dashboardRoute = '/dashboard/student'
-      if (role === 'teacher') dashboardRoute = '/dashboard/teacher'
-      else if (role === 'staff') dashboardRoute = '/staff/dashboard'
-      else if (role === 'admin') dashboardRoute = '/admin/dashboard'
-      const userName = email.split('@')[0]
-      // persist role locally so nav can show admin links
-      try {
-        localStorage.setItem('role', role)
-        localStorage.setItem('name', userName)
-        localStorage.setItem('email', email)
-      } catch (e) {
-        // ignore if running in non-browser environment
+    try {
+      // Step 1: Authenticate with Firebase
+      const credential = await signInWithEmailAndPassword(auth, email, password)
+      const token = await credential.user.getIdToken()
+
+      // Step 2: Verify with backend — checks BOTH User and Staff collections
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setErrors({ general: data.message || 'Login failed. Please try again.' })
+        setIsLoading(false)
+        return
       }
-      router.push(`${dashboardRoute}?name=${encodeURIComponent(userName)}&role=${role}`)
-    }, 1500)
+
+      const user = data.user
+
+      // Step 3: Validate that the selected role matches
+      const actualRole = user.role
+      const isTeacherVariant = actualRole === 'teacher' || actualRole === 'resolving_staff' || actualRole === 'staff'
+      const selectedTeacherVariant = role === 'teacher'
+
+      if (selectedTeacherVariant && !isTeacherVariant) {
+        setErrors({ general: 'This account is not a teacher/staff account. Please select the correct role.' })
+        setIsLoading(false)
+        return
+      }
+      if (!selectedTeacherVariant && isTeacherVariant) {
+        setErrors({ general: 'This is a teacher/staff account. Please select "Teacher" above.' })
+        setIsLoading(false)
+        return
+      }
+      if (role !== 'teacher' && role !== actualRole) {
+        setErrors({ general: `This account is registered as "${actualRole}". Please select the correct role.` })
+        setIsLoading(false)
+        return
+      }
+
+      // Step 4: Persist session to localStorage
+      localStorage.setItem('role', actualRole)
+      localStorage.setItem('name', user.name || email.split('@')[0])
+      localStorage.setItem('email', user.email)
+      localStorage.setItem('staffId', user._id)
+
+      if (user.status) {
+        localStorage.setItem('staffStatus', user.status)
+      } else {
+        localStorage.removeItem('staffStatus')
+      }
+
+      // Step 5: Redirect to the correct dashboard
+      const dashboardPath = getDashboardPath(actualRole, user.status)
+      router.push(`${dashboardPath}?name=${encodeURIComponent(user.name || email.split('@')[0])}`)
+
+    } catch (err: any) {
+      console.error('Login error:', err)
+      if (
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/wrong-password' ||
+        err.code === 'auth/invalid-credential'
+      ) {
+        setErrors({ general: 'Invalid email or password.' })
+      } else if (err.code === 'auth/user-disabled') {
+        setErrors({ general: 'This account has been disabled. Please contact admin.' })
+      } else if (err.code === 'auth/too-many-requests') {
+        setErrors({ general: 'Too many failed attempts. Please try again later.' })
+      } else {
+        setErrors({ general: err.message || 'Login failed. Please try again.' })
+      }
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -84,51 +160,25 @@ export default function LoginPage() {
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">I am a</label>
               <div className="flex gap-4 flex-wrap">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="student"
-                    checked={role === 'student'}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-foreground">Student</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="teacher"
-                    checked={role === 'teacher'}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-foreground">Teacher</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="staff"
-                    checked={role === 'staff'}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-foreground">Staff</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="admin"
-                    checked={role === 'admin'}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-foreground">Admin</span>
-                </label>
+                {(['student', 'teacher', 'admin'] as const).map(r => (
+                  <label key={r} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="role"
+                      value={r}
+                      checked={role === r}
+                      onChange={e => setRole(e.target.value)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-foreground capitalize">{r}</span>
+                  </label>
+                ))}
               </div>
+              {role === 'teacher' && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Includes both teachers and resolving staff.
+                </p>
+              )}
             </div>
 
             <div>
@@ -136,7 +186,7 @@ export default function LoginPage() {
               <Input
                 type="email"
                 value={email}
-                onChange={(e) => {
+                onChange={e => {
                   setEmail(e.target.value)
                   if (errors.email) setErrors({ ...errors, email: undefined })
                 }}
@@ -152,11 +202,11 @@ export default function LoginPage() {
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => {
+                  onChange={e => {
                     setPassword(e.target.value)
                     if (errors.password) setErrors({ ...errors, password: undefined })
                   }}
-                  placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó"
+                  placeholder="••••••••"
                   className={errors.password ? 'border-red-500' : ''}
                 />
                 <button
@@ -171,7 +221,7 @@ export default function LoginPage() {
             </div>
 
             {errors.general && (
-              <div className="p-3 bg-red-100 border border-red-300 rounded-lg text-red-800 text-sm">
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm">
                 {errors.general}
               </div>
             )}
@@ -181,12 +231,12 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full bg-primary hover:bg-primary/90 text-white text-base py-2"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? 'Signing in…' : 'Sign In'}
             </Button>
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
+                <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-card text-muted-foreground">New to HCAP?</span>
@@ -194,14 +244,8 @@ export default function LoginPage() {
             </div>
 
             <Link href="/register">
-              <Button variant="outline" className="w-full bg-transparent">
-                Create an Account
-              </Button>
+              <Button variant="outline" className="w-full bg-transparent">Create an Account</Button>
             </Link>
-
-            <p className="text-center text-xs text-muted-foreground mt-6">
-              Demo credentials: any email / password (min 8 chars)
-            </p>
           </form>
         </Card>
       </div>

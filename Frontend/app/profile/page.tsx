@@ -54,7 +54,8 @@ export default function ProfilePage() {
     if (!profile) return '/dashboard/student'
     switch (profile.role) {
       case 'teacher': return '/dashboard/teacher'
-      case 'staff': return '/staff/dashboard'
+      case 'staff':
+      case 'resolving_staff': return '/staff/dashboard'
       case 'admin': return '/admin/dashboard'
       default: return '/dashboard/student'
     }

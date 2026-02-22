@@ -1,264 +1,359 @@
 ﻿'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { AlertCircle, CheckCircle, Clock, LogOut, Menu, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import {
-  fetchIssues,
-  postStatusUpdate,
-  saveResolutionEvidence,
-  type Issue,
-  type IssueAttachment,
-  type IssueStatus
-} from '@/lib/api'
-import { APP_NAME } from '@/lib/branding'
-import { logoutAndRedirect } from '@/lib/utils'
+import { LogOut, Wrench, Clock, AlertTriangle, Play, CheckCircle2, User } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme-toggle'
+import Loading from './loading'
+import { logoutUser, fetchIssues, type Issue, updateStaffStatus, acknowledgeIssue, staffResolveIssue, fetchUserProfile } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
 
-interface ChecklistState {
-  diagnosisDone: boolean
-  fixApplied: boolean
-  tested: boolean
+function SLATimer({ deadline, status }: { deadline?: string, status?: string }) {
+  const [timeLeft, setTimeLeft] = useState<string>('')
+  const [isBreached, setIsBreached] = useState(false)
+
+  useEffect(() => {
+    if (!deadline || status === 'resolved') return
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime()
+      const target = new Date(deadline).getTime()
+      const diff = target - now
+
+      if (diff <= 0) {
+        setTimeLeft('SLA BREACHED')
+        setIsBreached(true)
+        clearInterval(interval)
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60))
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+        setTimeLeft(`${hours}h ${minutes}m ${seconds}s`)
+        setIsBreached(diff < 5 * 60 * 1000) // Red if less than 5 mins
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [deadline, status])
+
+  if (!deadline || status === 'resolved') return null
+
+  return (
+    <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${isBreached ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-primary/10 text-primary'}`}>
+      <Clock className="w-3 h-3" />
+      {timeLeft}
+    </div>
+  )
 }
 
-function priorityBadge(priority?: string): string {
-  if (priority === 'high') return 'bg-red-100 text-red-800'
-  if (priority === 'medium') return 'bg-amber-100 text-amber-800'
-  return 'bg-green-100 text-green-800'
-}
+function StaffDashboardContent() {
+  const searchParams = useSearchParams()
+  const [userName, setUserName] = useState('Staff Member')
+  const [availability, setAvailability] = useState<'available' | 'busy' | 'on_break' | 'offline'>('available')
 
-export default function StaffDashboard() {
-  const [issues, setIssues] = useState<Issue[]>([])
-  const [loading, setLoading] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [search, setSearch] = useState('')
-  const [activeEvidenceIssue, setActiveEvidenceIssue] = useState<string | null>(null)
-  const [checklist, setChecklist] = useState<ChecklistState>({ diagnosisDone: false, fixApplied: false, tested: false })
-  const [evidenceNote, setEvidenceNote] = useState('')
-  const [afterAttachments, setAfterAttachments] = useState<IssueAttachment[]>([])
+  // Read role from localStorage
+  const staffRole = typeof window !== 'undefined' ? (localStorage.getItem('role') || 'resolving_staff') : 'resolving_staff'
+  const isResolvingStaff = staffRole === 'resolving_staff'
 
-  const load = async (withLoader = false) => {
-    if (withLoader) setLoading(true)
-    const data = await fetchIssues(1000)
-    setIssues(data)
-    if (withLoader) setLoading(false)
+  const [allIssues, setAllIssues] = useState<Issue[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const handleLogout = () => {
+    logoutUser()
+  }
+
+  const handleStatusToggle = async (newStatus: 'available' | 'busy' | 'on_break' | 'offline') => {
+    const res = await updateStaffStatus(newStatus)
+    if (res?.success) {
+      setAvailability(res.status as any)
+    }
+  }
+
+  const handleAcknowledge = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const res = await acknowledgeIssue(id)
+    if (res?.success) {
+      setAllIssues(prev => prev.map(i => i.id === id ? res.issue : i))
+    }
+  }
+
+  const handleResolve = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const res = await staffResolveIssue(id)
+    if (res?.success) {
+      setAllIssues(prev => prev.map(i => i.id === id ? res.issue : i))
+    }
   }
 
   useEffect(() => {
-    void load(true)
-  }, [])
-
-  const filtered = useMemo(() => {
-    const term = search.toLowerCase().trim()
-    return issues.filter((issue) => {
-      const text = `${issue.title || ''} ${issue.description || ''} ${issue.assetId || ''} ${issue.assignee || ''}`.toLowerCase()
-      return !term || text.includes(term)
-    })
-  }, [issues, search])
-
-  const lanes = useMemo(
-    () => ({
-      pending: filtered.filter((i) => i.status === 'pending'),
-      inProgress: filtered.filter((i) => i.status === 'in-progress'),
-      resolved: filtered.filter((i) => i.status === 'resolved')
-    }),
-    [filtered]
-  )
+    async function loadData() {
+      if (isResolvingStaff) {
+        try {
+          const [issues, profile] = await Promise.all([
+            fetchIssues(50),
+            fetchUserProfile()
+          ])
+          setAllIssues(issues || [])
+          if (profile) {
+            setUserName(profile.name)
+            if (profile.availabilityStatus) setAvailability(profile.availabilityStatus as any)
+          }
+        } catch (err) {
+          console.error("Error fetching staff data:", err)
+        }
+      }
+      setIsLoading(false)
+    }
+    loadData()
+  }, [isResolvingStaff])
 
   const stats = {
-    total: issues.length,
-    pending: lanes.pending.length,
-    inProgress: lanes.inProgress.length,
-    resolved: lanes.resolved.length
+    totalAssigned: allIssues.length,
+    pending: allIssues.filter(i => i.status === 'pending').length,
+    inProgress: allIssues.filter(i => i.status === 'in-progress' || i.status === 'in_progress').length,
+    resolved: allIssues.filter(i => i.status === 'resolved').length
   }
 
-  const updateIssueState = (updated: Issue) => {
-    setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)))
-  }
-
-  const changeStatus = async (issue: Issue, status: IssueStatus) => {
-    const who = typeof window !== 'undefined' ? localStorage.getItem('name') || 'Staff' : 'Staff'
-    const updated = await postStatusUpdate(issue.id, status, `Moved to ${status}`, who)
-    if (updated) updateIssueState(updated)
-  }
-
-  const handleAfterAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).slice(0, 2)
-    const next: IssueAttachment[] = []
-    for (const file of files) {
-      const dataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
-        reader.readAsDataURL(file)
-      })
-      next.push({
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        dataUrl,
-        uploadedAt: new Date().toISOString()
-      })
-    }
-    setAfterAttachments(next)
-  }
-
-  const saveEvidenceAndResolve = async (issue: Issue) => {
-    const who = typeof window !== 'undefined' ? localStorage.getItem('name') || 'Staff' : 'Staff'
-    const evidenceUpdated = await saveResolutionEvidence(issue.id, {
-      checklist,
-      afterAttachments,
-      note: evidenceNote,
-      by: who
-    })
-    if (!evidenceUpdated) return
-
-    const resolved = await postStatusUpdate(issue.id, 'resolved', 'Resolved with checklist evidence', who)
-    if (resolved) {
-      updateIssueState(resolved)
-      setActiveEvidenceIssue(null)
-      setChecklist({ diagnosisDone: false, fixApplied: false, tested: false })
-      setEvidenceNote('')
-      setAfterAttachments([])
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case 'pending': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200'
+      case 'in-progress':
+      case 'in_progress': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+      case 'resolved': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+      case 'escalated': return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 animate-pulse'
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
     }
   }
 
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center">Loading staff board...</div>
+  const formatStatus = (status?: string) => {
+    if (!status) return 'Unknown'
+    if (status === 'in-progress' || status === 'in_progress') return 'In Progress'
+    return status.charAt(0).toUpperCase() + status.slice(1)
+  }
+
+  useEffect(() => {
+    if (!isResolvingStaff && typeof window !== 'undefined') {
+      window.location.href = '/dashboard/teacher'
+    }
+  }, [isResolvingStaff])
+
+  if (!isResolvingStaff) return <Loading />
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border sticky top-0 z-40">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 hover:bg-muted rounded-lg">
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold">FA</div>
-              <span className="font-bold text-primary">{APP_NAME} - Staff Ops</span>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Header */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-primary">Operations Center</h1>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 capitalize">
+                <span className={`w-2 h-2 rounded-full ${availability === 'available' ? 'bg-green-500' : availability === 'offline' ? 'bg-gray-500' : 'bg-orange-500'}`}></span>
+                {userName} • {availability.replace('_', ' ')}
+              </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-2 bg-transparent" onClick={() => logoutAndRedirect()}>
-            <LogOut className="w-4 h-4" />Logout
-          </Button>
+          <div className="flex gap-4 items-center">
+            {/* Availability UI */}
+            <div className="hidden md:flex bg-muted p-1 rounded-lg gap-1 border border-border/50 shadow-inner">
+              {[
+                { id: 'available', label: 'Go Available', color: 'hover:bg-green-500' },
+                { id: 'on_break', label: 'On Break', color: 'hover:bg-orange-500' },
+                { id: 'offline', label: 'Go Offline', color: 'hover:bg-gray-500' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => handleStatusToggle(opt.id as any)}
+                  className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-tighter transition-all rounded-md ${availability === opt.id ? 'bg-background shadow-sm text-primary scale-105' : 'text-muted-foreground ' + opt.color + ' hover:text-white'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Link href="/profile">
+                <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </Button>
+              </Link>
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-500 h-9 w-9 p-0">
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <div className="flex">
-        <aside className={`${sidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-64 bg-card border-r border-border p-6 md:sticky md:top-16 md:h-[calc(100vh-64px)]`}>
-          <nav className="space-y-2">
-            <Link href="/staff/dashboard" className="block px-4 py-2 rounded-lg font-semibold text-primary bg-primary/10">Operations Board</Link>
-            <Link href="/profile" className="block px-4 py-2 rounded-lg text-foreground hover:bg-muted transition">Profile</Link>
-          </nav>
-        </aside>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Quick Assignment Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="p-4 bg-primary/5 border-primary/20 hover:shadow-md transition-all">
+            <p className="text-xs font-bold text-muted-foreground uppercase opacity-70 border-b border-primary/10 pb-1 mb-2">Queue Size</p>
+            <p className="text-3xl font-black text-primary">{stats.totalAssigned}</p>
+          </Card>
+          <Card className="p-4 bg-orange-500/5 border-orange-500/20">
+            <p className="text-xs font-bold text-muted-foreground uppercase opacity-70 border-b border-orange-500/10 pb-1 mb-2">New (Pending)</p>
+            <p className="text-3xl font-black text-orange-500">{stats.pending}</p>
+          </Card>
+          <Card className="p-4 bg-blue-500/5 border-blue-500/20">
+            <p className="text-xs font-bold text-muted-foreground uppercase opacity-70 border-b border-blue-500/10 pb-1 mb-2">In Progress</p>
+            <p className="text-3xl font-black text-blue-500">{stats.inProgress}</p>
+          </Card>
+          <Card className="p-4 bg-green-500/5 border-green-500/20">
+            <p className="text-xs font-bold text-muted-foreground uppercase opacity-70 border-b border-green-500/10 pb-1 mb-2">Closed</p>
+            <p className="text-3xl font-black text-green-500">{stats.resolved}</p>
+          </Card>
+        </div>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Total', value: stats.total, icon: Search },
-              { label: 'Pending', value: stats.pending, icon: AlertCircle },
-              { label: 'In Progress', value: stats.inProgress, icon: Clock },
-              { label: 'Resolved', value: stats.resolved, icon: CheckCircle }
-            ].map((item) => {
-              const Icon = item.icon
-              return (
-                <Card key={item.label} className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase">{item.label}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="text-3xl font-bold text-primary">{item.value}</p>
-                    <Icon className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                </Card>
-              )
-            })}
+        {/* ── ACTIVE ASSIGNMENTS ── */}
+        <div>
+          <div className="flex justify-between items-end mb-6">
+            <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Wrench className="w-6 h-6 text-primary" />
+              Assigned Tasks
+            </h2>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest opacity-50">Auto-refresh active</p>
+            </div>
           </div>
 
-          <Card className="p-4">
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by title, asset ID, assignee..." />
-          </Card>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            {[
-              { key: 'pending', label: 'Pending', items: lanes.pending },
-              { key: 'in-progress', label: 'In Progress', items: lanes.inProgress },
-              { key: 'resolved', label: 'Resolved', items: lanes.resolved }
-            ].map((lane) => (
-              <Card key={lane.key} className="p-4">
-                <h3 className="font-bold mb-3">{lane.label} ({lane.items.length})</h3>
-                <div className="space-y-3 max-h-[68vh] overflow-y-auto pr-1">
-                  {lane.items.map((issue) => (
-                    <div key={issue.id} className="border border-border rounded-lg p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-sm">{issue.title}</p>
-                        <span className={`text-[11px] px-2 py-1 rounded-full ${priorityBadge(issue.priority)}`}>
-                          {(issue.priority || 'low').toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{issue.building} ΓÇó {issue.floor} ΓÇó Room {issue.room}</p>
-                      <p className="text-xs text-muted-foreground">Asset: {issue.assetId || 'N/A'} ΓÇó ETA: {issue.estimatedResolutionHours || 48}h</p>
-                      <p className="text-xs text-muted-foreground">Assigned: {issue.assignee || 'Unassigned'}</p>
-
-                      {issue.status === 'pending' && (
-                        <div className="flex gap-2 underline underline-offset-4">
-                          <Button size="sm" variant="outline" onClick={() => void changeStatus(issue, 'in-progress')}>Start Work</Button>
-                          <Link href={`/issue/${issue.id}`}>
-                            <Button size="sm" variant="ghost">View Details</Button>
-                          </Link>
-                        </div>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-muted-foreground font-medium">Synchronizing missions...</p>
+            </div>
+          ) : allIssues.filter(i => i.status !== 'resolved').length === 0 ? (
+            <Card className="p-16 text-center bg-muted/5 border-dashed border-2">
+              <div className="bg-primary/5 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-10 h-10 text-primary opacity-30" />
+              </div>
+              <p className="text-xl font-bold text-foreground">Mission Accomplished</p>
+              <p className="text-muted-foreground mt-2 max-w-sm mx-auto italic">“Efficiency is doing things right; effectiveness is doing the right things.”</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {allIssues
+                .filter(i => i.status !== 'resolved')
+                .map(issue => (
+                  <Link key={issue.id} href={`/issue/${issue.id}`}>
+                    <Card className="group bg-card/50 hover:bg-card border border-border/50 hover:border-primary transition-all p-0 overflow-hidden shadow-sm relative">
+                      {issue.priority === 'high' && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
                       )}
 
-                      {issue.status === 'in-progress' && (
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => setActiveEvidenceIssue(activeEvidenceIssue === issue.id ? null : issue.id)}>
-                              {activeEvidenceIssue === issue.id ? 'Hide Evidence' : 'Add Evidence & Resolve'}
-                            </Button>
-                            <Link href={`/issue/${issue.id}`}>
-                              <Button size="sm" variant="ghost">View Details</Button>
-                            </Link>
+                      <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex gap-2 items-center">
+                            <span className={`text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest shadow-sm ${getStatusColor(issue.status)}`}>
+                              {formatStatus(issue.status)}
+                            </span>
+                            {issue.priority === 'high' && (
+                              <Badge variant="destructive" className="text-[9px] font-black uppercase px-2 py-0.5 rounded shadow-sm">Emergency</Badge>
+                            )}
+                          </div>
+                          <SLATimer deadline={issue.slaDeadline} status={issue.status} />
+                        </div>
+
+                        <h3 className="font-extrabold text-xl group-hover:text-primary transition-colors mb-3 tracking-tight">
+                          {issue.title}
+                        </h3>
+
+                        <div className="space-y-3 mb-6">
+                          <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-semibold">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-primary/40"></span>
+                              {issue.category}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-foreground/80">
+                              {issue.location}
+                            </div>
+                            {issue.reassignmentCount && issue.reassignmentCount > 0 && (
+                              <div className="flex items-center gap-1 text-orange-500">
+                                <AlertTriangle className="w-3 h-3" />
+                                Reassigned x{issue.reassignmentCount}
+                              </div>
+                            )}
                           </div>
 
-                          {activeEvidenceIssue === issue.id && (
-                            <div className="rounded-md border border-border p-2 space-y-2">
-                              <label className="flex items-center justify-between text-xs">
-                                <span>Diagnosis done</span>
-                                <input type="checkbox" checked={checklist.diagnosisDone} onChange={(e) => setChecklist((p) => ({ ...p, diagnosisDone: e.target.checked }))} />
-                              </label>
-                              <label className="flex items-center justify-between text-xs">
-                                <span>Fix applied</span>
-                                <input type="checkbox" checked={checklist.fixApplied} onChange={(e) => setChecklist((p) => ({ ...p, fixApplied: e.target.checked }))} />
-                              </label>
-                              <label className="flex items-center justify-between text-xs">
-                                <span>Tested</span>
-                                <input type="checkbox" checked={checklist.tested} onChange={(e) => setChecklist((p) => ({ ...p, tested: e.target.checked }))} />
-                              </label>
-                              <Input value={evidenceNote} onChange={(e) => setEvidenceNote(e.target.value)} placeholder="Resolution note" />
-                              <input type="file" accept="image/*" multiple onChange={handleAfterAttachment} className="text-xs" />
-                              <Button size="sm" onClick={() => void saveEvidenceAndResolve(issue)} className="w-full">Save Evidence & Resolve</Button>
-                            </div>
-                          )}
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed opacity-80 italic font-medium">
+                            "{issue.description}"
+                          </p>
                         </div>
-                      )}
 
-                      {issue.status === 'resolved' && (
-                        <div className="space-y-2">
-                          <p className="text-xs text-green-600">Quality Score: {issue.resolutionEvidence?.qualityScore || 'N/A'} / 5</p>
-                          <Link href={`/issue/${issue.id}`}>
-                            <Button size="sm" variant="ghost" className="p-0 h-auto text-xs">View Details</Button>
-                          </Link>
+                        <div className="flex items-center justify-between pt-4 border-t border-border/30">
+                          <div className="text-[10px] text-muted-foreground/60 font-mono">
+                            ID: {issue.id?.slice(-8).toUpperCase()} • {new Date(issue.createdAt || '').toLocaleDateString()}
+                          </div>
+                          <div className="flex gap-2">
+                            {issue.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                className="h-8 gap-1.5 px-4 font-bold text-[10px] uppercase shadow-md shadow-primary/20"
+                                onClick={(e) => handleAcknowledge(e, issue.id)}
+                              >
+                                <Play className="w-3 h-3 fill-current" />
+                                Start Working
+                              </Button>
+                            )}
+                            {(issue.status === 'in-progress' || issue.status === 'in_progress') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1.5 px-4 font-bold text-[10px] uppercase border-green-500/50 text-green-600 hover:bg-green-500 hover:text-white"
+                                onClick={(e) => handleResolve(e, issue.id)}
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Mark Resolved
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {/* Resolved History Section */}
+        {allIssues.filter(i => i.status === 'resolved').length > 0 && (
+          <div className="pt-12 border-t border-border/50">
+            <h3 className="text-lg font-bold text-muted-foreground/50 mb-6 uppercase tracking-[0.2em] flex items-center gap-3">
+              <span className="h-px bg-border/50 flex-grow"></span>
+              History
+              <span className="h-px bg-border/50 flex-grow"></span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {allIssues.filter(i => i.status === 'resolved').slice(0, 6).map(issue => (
+                <Link key={issue.id} href={`/issue/${issue.id}`}>
+                  <Card className="p-4 hover:bg-muted/30 transition-all cursor-pointer border-green-500/10 hover:border-green-500/30 group">
+                    <div className="flex justify-between items-center mb-1">
+                      <h4 className="font-bold text-xs truncate flex-grow group-hover:text-green-600 transition-colors uppercase tracking-tight">{issue.title}</h4>
+                      <CheckCircle2 className="w-3 h-3 text-green-500 opacity-40" />
                     </div>
-                  ))}
-
-                  {lane.items.length === 0 && <p className="text-xs text-muted-foreground">No issues in this lane.</p>}
-                </div>
-              </Card>
-            ))}
+                    <p className="text-[10px] text-muted-foreground/60 font-medium">Completed on {new Date(issue.resolvedAt || '').toLocaleDateString()}</p>
+                  </Card>
+                </Link>
+              ))}
+            </div>
           </div>
-        </main>
-      </div>
+        )}
+      </main>
     </div>
+  )
+}
+
+export default function StaffDashboard() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <StaffDashboardContent />
+    </Suspense>
   )
 }

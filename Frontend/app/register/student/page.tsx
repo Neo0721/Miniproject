@@ -185,10 +185,10 @@ export default function StudentRegisterPage() {
                 className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${errors.department ? 'border-red-500' : 'border-border'}`}
               >
                 <option value="">Select department</option>
-                <option value="CS">Computer Science</option>
-                <option value="ECE">Electronics</option>
-                <option value="ME">Mechanical</option>
-                <option value="CE">Civil</option>
+                <option value="Computer Science">Computer Science</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Mechanical">Mechanical</option>
+                <option value="Civil">Civil</option>
               </select>
               {errors.department && <p className="text-red-600 text-xs mt-1">{errors.department}</p>}
             </div>

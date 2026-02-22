@@ -1,4 +1,4 @@
-export type IssueStatus = 'pending' | 'in-progress' | 'resolved'
+export type IssueStatus = 'pending' | 'in-progress' | 'in_progress' | 'resolved' | 'escalated'
 export type IssuePriority = 'high' | 'medium' | 'low'
 export type UserRole = 'student' | 'staff' | 'admin'
 
@@ -121,6 +121,8 @@ export const DEPARTMENT_CATEGORIES: Record<string, string[]> = {
   Library: ['Book Availability', 'Seating', 'Noise', 'Systems'],
   Security: ['Gate Access', 'CCTV', 'Patrol', 'Emergency'],
   Mechanical: ['General', 'Lab Equipment', 'Workshop'],
+  Electronics: ['General', 'Lab Equipment', 'Microcontrollers', 'Embedded Systems'],
+  Civil: ['General', 'Lab Equipment', 'Structural', 'Surveying'],
   'Computer Science': ['General', 'Lab Systems', 'Software Licensing'],
   Administration: ['General', 'Office Supplies', 'Documentation'],
   Canteen: []

@@ -91,6 +91,8 @@ const IssueSchema = new mongoose.Schema(
           "Facilities",
           "Security",
           "Mechanical",
+          "Electronics",
+          "Civil",
           "Computer Science",
           "Administration"
         ],
@@ -135,8 +137,8 @@ const IssueSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ["pending", "in_progress", "resolved"],
-        message: "Status must be 'pending', 'in_progress', or 'resolved'"
+        values: ["pending", "approved", "in_progress", "resolved", "escalated"],
+        message: "Status must be 'pending', 'approved', 'in_progress', 'resolved', or 'escalated'"
       },
       default: "pending"
     },
@@ -147,8 +149,15 @@ const IssueSchema = new mongoose.Schema(
     },
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Staff",
       default: null
+    },
+    assignedAt: Date,
+    acknowledgedAt: Date,
+    slaDeadline: Date,
+    reassignmentCount: {
+      type: Number,
+      default: 0
     },
     resolution: {
       type: String,

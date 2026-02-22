@@ -11,11 +11,12 @@ const authMiddleware = async (req, res, next) => {
       console.log(`[AUTH DEBUG] Attempting dev bypass for: ${devEmail}`);
 
       const User = require("../models/User");
+      const Staff = require("../models/Staff");
+
       let targetUser = await User.findOne({ email: devEmail });
 
       if (!targetUser) {
-        console.log(`[AUTH DEBUG] User ${devEmail} not found, falling back to any existing user`);
-        targetUser = await User.findOne();
+        targetUser = await Staff.findOne({ email: devEmail });
       }
 
       if (targetUser) {
@@ -28,8 +29,12 @@ const authMiddleware = async (req, res, next) => {
         console.log(`[AUTH DEBUG] Logged in as: ${targetUser.email}`);
         return next();
       } else {
-        console.error("[AUTH DEBUG] Dev bypass failed: No users exist in database.");
-        // Fall through to 401 if no user at all
+        console.error(`[AUTH DEBUG] Dev bypass failed: User ${devEmail} not found in database.`);
+        return res.status(401).json({
+          success: false,
+          message: `Dev bypass failed: User ${devEmail} not found`,
+          error: "USER_NOT_FOUND"
+        });
       }
     }
 

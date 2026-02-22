@@ -2,6 +2,7 @@ const router = require("express").Router();
 const Issue = require("../models/Issue");
 const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
+const dbUserMiddleware = require("../middleware/dbUserMiddleware");
 
 /**
  * @route   POST /api/issues
@@ -9,33 +10,26 @@ const authMiddleware = require("../middleware/authMiddleware");
  * @access  Protected (requires Firebase ID token)
  * @body    { title, category, location, description, priority?, imageBase64? }
  */
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
+    const user = req.dbUser;
+
     const {
       title,
       category,
       location,
       description,
       priority,
-      imageBase64,
+      department,
       building,
       floor,
       room,
       tags,
       timetableImpact,
       attachments,
-      assetId
+      assetId,
+      imageBase64
     } = req.body;
-
-    // Find the user who is reporting the issue
-    const user = await User.findOne({ email: req.user.email });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found. Please register first.",
-        error: "USER_NOT_FOUND"
-      });
-    }
 
     // Validation
     if (!title || !category || !location || !description) {
@@ -61,6 +55,8 @@ router.post("/", authMiddleware, async (req, res) => {
       "Facilities",
       "Security",
       "Mechanical",
+      "Electronics",
+      "Civil",
       "Computer Science",
       "Administration"
     ];
@@ -104,14 +100,20 @@ router.post("/", authMiddleware, async (req, res) => {
       issueData.imageUrl = issueData.attachments[0].dataUrl;
     }
 
-    const issue = await Issue.create(issueData);
+    let issue = await Issue.create(issueData);
+
+    // Smart Round-Robin Assignment
+    const AssignmentService = require("../services/AssignmentService");
+    const assignedStaff = await AssignmentService.assignToStaff(issue);
+
+    // Populate the reportedBy and assignedTo fields for notification and response
+    issue = await Issue.findById(issue._id)
+      .populate("reportedBy", "name email role department")
+      .populate("assignedTo", "name email department");
 
     // Trigger dynamic notifications (Non-blocking)
     const NotificationService = require("../services/NotificationService");
     NotificationService.triggerNewIssueAlert(issue);
-
-    // Populate the reportedBy field
-    await issue.populate("reportedBy", "name email role department");
 
     return res.status(201).json({
       success: true,
@@ -164,16 +166,9 @@ router.post("/", authMiddleware, async (req, res) => {
  * @access  Protected (requires Firebase ID token)
  * @query   { status?, category?, sort?, limit?, page? }
  */
-router.get("/my", authMiddleware, async (req, res) => {
+router.get("/my", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.user.email });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-        error: "USER_NOT_FOUND"
-      });
-    }
+    const user = req.dbUser;
 
     const { status, category, sort = "-createdAt", limit = 10, page = 1 } = req.query;
 
@@ -268,7 +263,7 @@ router.get("/my", authMiddleware, async (req, res) => {
  * @desc    Get a specific issue by ID
  * @access  Protected (requires Firebase ID token)
  */
-router.get("/:id", authMiddleware, async (req, res) => {
+router.get("/:id", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id)
       .populate("reportedBy", "name email role department")
@@ -280,6 +275,17 @@ router.get("/:id", authMiddleware, async (req, res) => {
         message: "Issue not found",
         error: "ISSUE_NOT_FOUND"
       });
+    }
+
+    const user = req.dbUser;
+    const isAdmin = user.role === "admin";
+    const isReporter = issue.reportedBy._id.toString() === user._id.toString();
+    const isAssignee = issue.assignedTo?._id.toString() === user._id.toString();
+    const isResolvingStaff = user.role === "resolving_staff" || user.role === "staff";
+
+    // Permission check: only admin, reporter, assignee, or any staff can view details
+    if (!isAdmin && !isReporter && !isAssignee && !isResolvingStaff) {
+      return res.status(403).json({ success: false, message: "Access denied to this issue" });
     }
 
     return res.json({
@@ -435,7 +441,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
  * @desc    Action-based partial update (status, assign, comment, evidence, etc.)
  * @access  Protected
  */
-router.patch("/:id", authMiddleware, async (req, res) => {
+router.patch("/:id", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
     const { action, ...payload } = req.body;
     const issue = await Issue.findById(req.params.id);
@@ -444,9 +450,22 @@ router.patch("/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: "Issue not found" });
     }
 
-    const user = await User.findOne({ email: req.user.email });
-    const who = payload.by || user?.name || req.user.email;
+    const user = req.dbUser;
+    const who = user.name;
+    const isAdmin = user.role === "admin";
+    const isReporter = issue.reportedBy.toString() === user._id.toString();
+    const isAssignee = issue.assignedTo?.toString() === user._id.toString();
 
+    // Permission Logic
+    if (!isAdmin) {
+      if (["edit", "reopen", "rate", "resolution-feedback"].includes(action)) {
+        if (!isReporter) return res.status(403).json({ success: false, message: "Only reporter can perform this action" });
+      } else if (["status", "assign", "internal-note"].includes(action)) { // Removed "resolve" as there's no "resolve" case
+        if (user.role !== "resolving_staff" || !isAssignee) {
+          return res.status(403).json({ success: false, message: "Only assigned resolving staff can manage this issue" });
+        }
+      }
+    }
     switch (action) {
       case "status":
         if (payload.status) {
@@ -567,7 +586,7 @@ router.patch("/:id", authMiddleware, async (req, res) => {
  * @desc    Delete an issue (only creator can delete)
  * @access  Protected (requires Firebase ID token)
  */
-router.delete("/:id", authMiddleware, async (req, res) => {
+router.delete("/:id", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id);
 
@@ -579,7 +598,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: req.user.email });
+    const user = req.dbUser;
 
     // Only creator can delete
     if (issue.reportedBy.toString() !== user._id.toString()) {
@@ -606,31 +625,49 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/issues
- * @desc    Get all issues (with filters) - mainly for staff/admin
- * @access  Protected (requires Firebase ID token)
- * @query   { status?, category?, department?, sort?, limit?, page? }
- */
-router.get("/", authMiddleware, async (req, res) => {
+router.get("/", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
-    const { status, category, department, sort = "-createdAt", limit = 20, page = 1 } = req.query;
+    const user = req.dbUser;
+    const isAdmin = user.role === "admin";
+    const isResolvingStaff = user.role === "resolving_staff" || user.role === "staff";
+
+    if (!isAdmin && !isResolvingStaff) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    const { status, category, department, priority, escalated, assigned, sort = "-createdAt", limit = 20, page = 1 } = req.query;
 
     const query = {};
 
+    // Resolving staff can only see issues assigned to them (as per requirement)
+    if (isResolvingStaff && !isAdmin) {
+      query.assignedTo = user._id;
+    }
+
     if (status) {
-      if (!["pending", "in_progress", "resolved"].includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid status filter",
-          error: "INVALID_STATUS"
-        });
-      }
       query.status = status;
     }
 
     if (category) {
       query.category = category;
+    }
+
+    if (department) {
+      query.department = department;
+    }
+
+    if (priority) {
+      query.priority = priority;
+    }
+
+    if (escalated) {
+      query.escalated = escalated === "true";
+    }
+
+    if (assigned === "Assigned") {
+      query.assignedTo = { $ne: null };
+    } else if (assigned === "Unassigned") {
+      query.assignedTo = null;
     }
 
     // Pagination
@@ -688,6 +725,54 @@ router.get("/", authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error fetching issues",
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/issues/bulk-assign
+ * @desc    Assign multiple issues to a staff member
+ * @access  Protected (Admin only)
+ */
+router.put("/bulk-assign", authMiddleware, dbUserMiddleware, async (req, res) => {
+  try {
+    const user = req.dbUser;
+    if (user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Admin only" });
+    }
+
+    const { issueIds, staffId } = req.body;
+
+    if (!issueIds || !Array.isArray(issueIds) || !staffId) {
+      return res.status(400).json({ success: false, message: "issueIds and staffId are required" });
+    }
+
+    const result = await Issue.updateMany(
+      { _id: { $in: issueIds } },
+      {
+        $set: {
+          assignedTo: staffId,
+          status: "approved",
+          assignedAt: new Date()
+        }
+      }
+    );
+
+    // Update staff active issues count
+    const Staff = require("../models/Staff");
+    await Staff.findByIdAndUpdate(staffId, { $inc: { currentActiveIssues: issueIds.length } });
+
+    return res.json({
+      success: true,
+      message: `Successfully assigned ${result.modifiedCount} issues`,
+      updated: result.modifiedCount
+    });
+  } catch (error) {
+    console.error("Bulk assign issues error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error processing bulk assignment",
       error: error.message
     });
   }

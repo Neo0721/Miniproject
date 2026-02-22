@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import {
   AlertCircle,
   Bell,
@@ -16,6 +17,8 @@ import {
   Search,
   Settings2,
   TrendingUp,
+  User,
+  UserCheck,
   X
 } from 'lucide-react'
 import {
@@ -26,8 +29,12 @@ import {
   postStatusUpdate,
   resolveIssue,
   updateIssueMeta,
+  fetchPendingStaff,
+  approveStaffMember,
+  fetchStaffByDepartment,
   type Issue,
-  type IssueStatus
+  type IssueStatus,
+  type StaffMember
 } from '@/lib/api'
 import { BUILDING_FLOORS, CAMPUS_BUILDINGS, TEAM_MEMBERS, priorityClass } from '@/lib/issue-config'
 import { APP_NAME, CAMPUS_NAME } from '@/lib/branding'
@@ -94,6 +101,8 @@ export default function AdminDashboard() {
   const [buildingFilter, setBuildingFilter] = useState('all')
   const [floorFilter, setFloorFilter] = useState('all')
   const [roomFilter, setRoomFilter] = useState('all')
+  const [escalatedFilter, setEscalatedFilter] = useState('all')
+  const [assignedFilter, setAssignedFilter] = useState('all')
   const [timetableOnly, setTimetableOnly] = useState(false)
   const [widgets, setWidgets] = useState({
     responseMetrics: true,
@@ -103,17 +112,48 @@ export default function AdminDashboard() {
   })
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
   const [bulkAssignee, setBulkAssignee] = useState('')
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [pendingStaff, setPendingStaff] = useState<StaffMember[]>([])
+  const [departmentStaff, setDepartmentStaff] = useState<StaffMember[]>([])
+  const [pendingStaffLoading, setPendingStaffLoading] = useState(true)
+  const [pendingRoles, setPendingRoles] = useState<Record<string, 'teacher' | 'resolving_staff'>>({})
+  const [searchQuery, setSearchQuery] = useState('')
   const [assetDrafts, setAssetDrafts] = useState<Record<string, string>>({})
 
   const loadIssues = async (withLoader = false) => {
     if (withLoader) setLoading(true)
-    const data = await fetchIssues(1000)
+    const data = await fetchIssues({
+      limit: 1000,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      priority: priorityFilter === 'all' ? undefined : priorityFilter,
+      department: departmentFilter === 'all' ? undefined : departmentFilter,
+      escalated: escalatedFilter === 'all' ? undefined : escalatedFilter,
+      assigned: assignedFilter === 'all' ? undefined : assignedFilter
+    })
     setIssues(data)
     if (withLoader) setLoading(false)
   }
 
   useEffect(() => {
     void loadIssues(true)
+  }, [statusFilter, priorityFilter, departmentFilter, escalatedFilter, assignedFilter])
+
+  useEffect(() => {
+    async function loadDeptStaff() {
+      const staff = await fetchStaffByDepartment(departmentFilter === 'all' ? undefined : departmentFilter)
+      setDepartmentStaff(staff)
+      setBulkAssignee('') // Clear selection when department changes
+    }
+    void loadDeptStaff()
+  }, [departmentFilter])
+
+  useEffect(() => {
+    async function loadPendingStaff() {
+      const staff = await fetchPendingStaff()
+      setPendingStaff(staff)
+      setPendingStaffLoading(false)
+    }
+    void loadPendingStaff()
   }, [])
 
   useEffect(() => {
@@ -337,31 +377,44 @@ export default function AdminDashboard() {
     }
   }, [filteredIssues])
 
+  const handleApproveStaff = async (staffId: string) => {
+    const roleToAssign = pendingRoles[staffId] || 'resolving_staff'
+    const approved = await approveStaffMember(staffId, roleToAssign)
+    if (approved) {
+      setPendingStaff(prev => prev.filter(s => s._id !== staffId))
+      toast({ title: `Staff member approved as ${roleToAssign.replace('_', ' ')}` })
+    }
+  }
+
   const handleAssign = async (issueId: string, assignee: string) => {
     const updated = await assignIssue(issueId, assignee, 'Admin')
     if (updated) {
-      setIssues((prev) => prev.map((item) => (item.id === issueId ? updated : item)))
+      void loadIssues(false)
+      toast({ title: 'Issue assigned' })
     }
   }
 
   const handleStatus = async (issueId: string, status: IssueStatus) => {
     const updated = await postStatusUpdate(issueId, status, `Marked ${status}`, 'Admin')
     if (updated) {
-      setIssues((prev) => prev.map((item) => (item.id === issueId ? updated : item)))
+      void loadIssues(false)
+      toast({ title: `Status updated to ${status}` })
     }
   }
 
   const handleApprove = async (issueId: string) => {
     const updated = await approveIssue(issueId)
     if (updated) {
-      setIssues((prev) => prev.map((item) => (item.id === issueId ? updated : item)))
+      void loadIssues(false)
+      toast({ title: 'Issue approved' })
     }
   }
 
   const handleResolve = async (issueId: string) => {
     const updated = await resolveIssue(issueId)
     if (updated) {
-      setIssues((prev) => prev.map((item) => (item.id === issueId ? updated : item)))
+      void loadIssues(false)
+      toast({ title: 'Issue resolved' })
     }
   }
 
@@ -392,7 +445,7 @@ export default function AdminDashboard() {
     if (!selectedIssueIds.length) return
     const result = await bulkUpdateIssues({ action: 'resolve', issueIds: selectedIssueIds, by: 'Admin' })
     if (!result) return
-    setIssues((prev) => prev.map((issue) => result.issues.find((item) => item.id === issue.id) || issue))
+    void loadIssues(false)
     toast({ title: `Resolved ${result.updated} issues` })
     clearSelection()
   }
@@ -401,8 +454,8 @@ export default function AdminDashboard() {
     if (!selectedIssueIds.length || !bulkAssignee) return
     const result = await bulkUpdateIssues({ action: 'assign', issueIds: selectedIssueIds, assignee: bulkAssignee, by: 'Admin' })
     if (!result) return
-    setIssues((prev) => prev.map((issue) => result.issues.find((item) => item.id === issue.id) || issue))
-    toast({ title: `Assigned ${result.updated} issues to ${bulkAssignee}` })
+    void loadIssues(false)
+    toast({ title: `Assigned ${result.updated} issues` })
     clearSelection()
   }
 
@@ -468,6 +521,11 @@ export default function AdminDashboard() {
             <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-2">
               <Download className="w-4 h-4" />PDF
             </Button>
+            <Link href="/profile">
+              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                <User className="w-4 h-4" />Profile
+              </Button>
+            </Link>
             <Button variant="outline" size="sm" className="gap-2 bg-transparent" onClick={() => logoutAndRedirect()}>
               <LogOut className="w-4 h-4" />Logout
             </Button>
@@ -503,6 +561,16 @@ export default function AdminDashboard() {
               {tags.map((tag) => (
                 <option key={tag} value={tag}>{tag}</option>
               ))}
+            </select>
+            <select value={escalatedFilter} onChange={(e) => setEscalatedFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
+              <option value="all">Escalated: All</option>
+              <option value="true">Escalated Only</option>
+              <option value="false">Not Escalated</option>
+            </select>
+            <select value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
+              <option value="all">Assignment: All</option>
+              <option value="Assigned">Assigned</option>
+              <option value="Unassigned">Unassigned</option>
             </select>
             <select
               value={buildingFilter}
@@ -751,6 +819,66 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
+          {/* Pending Staff Approvals */}
+          <Card className="p-6">
+            <h3 className="font-bold mb-4 flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-amber-500" />
+              Pending Staff Approvals
+            </h3>
+            {pendingStaffLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : pendingStaff.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No pending staff approvals. 🎉</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="pb-2 pr-4 font-semibold">Name</th>
+                      <th className="pb-2 pr-4 font-semibold">Email</th>
+                      <th className="pb-2 pr-4 font-semibold">Department</th>
+                      <th className="pb-2 pr-4 font-semibold">Status</th>
+                      <th className="pb-2 font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingStaff.map(s => (
+                      <tr key={s._id} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="py-2 pr-4 font-medium">{s.name}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">{s.email}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">{s.department || '—'}</td>
+                        <td className="py-2 pr-4">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                            <Clock className="w-3 h-3" />
+                            pending
+                          </span>
+                        </td>
+                        <td className="py-2 flex items-center gap-2">
+                          <select
+                            value={pendingRoles[s._id] || 'resolving_staff'}
+                            onChange={(e) => setPendingRoles(prev => ({ ...prev, [s._id]: e.target.value as any }))}
+                            className="text-xs px-2 py-1 border border-border rounded bg-background"
+                          >
+                            <option value="teacher">Teacher (Report Only)</option>
+                            <option value="resolving_staff">Resolving Staff (Full access)</option>
+                          </select>
+                          <Button
+                            size="sm"
+                            className="gap-1 bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => void handleApproveStaff(s._id)}
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            Approve
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
           <Card className="p-6">
             <h3 className="font-bold mb-4">Issue Assignment & Actions</h3>
             <div className="mb-4 p-3 border border-border rounded-md bg-muted/30">
@@ -764,8 +892,8 @@ export default function AdminDashboard() {
                   className="px-3 py-2 border border-border rounded-md bg-background min-w-44"
                 >
                   <option value="">Bulk assign staff</option>
-                  {Object.values(TEAM_MEMBERS).flat().map((name) => (
-                    <option key={name} value={name}>{name}</option>
+                  {departmentStaff.map((s) => (
+                    <option key={s._id} value={s._id}>{s.name} ({s.department})</option>
                   ))}
                 </select>
                 <Button size="sm" onClick={() => void handleBulkAssign()} disabled={!selectedIssueIds.length || !bulkAssignee}>
@@ -818,8 +946,8 @@ export default function AdminDashboard() {
                           className="px-3 py-2 border border-border rounded-md bg-background min-w-44"
                         >
                           <option value="">Assign staff</option>
-                          {staffOptions.map((name) => (
-                            <option key={name} value={name}>{name}</option>
+                          {departmentStaff.map((s) => (
+                            <option key={s._id} value={s._id}>{s.name}</option>
                           ))}
                         </select>
                         <Button size="sm" variant="outline" onClick={() => void handleApprove(issue.id)}>Approve</Button>

@@ -4,6 +4,7 @@ const cors = require("cors");
 const authRoutes = require("./routes/auth");
 const issueRoutes = require("./routes/issues");
 const userRoutes = require("./routes/users");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 
@@ -39,10 +40,12 @@ app.get("/api/debug", (req, res) => {
   res.json({ ok: true, message: "API is reachable" });
 });
 
-// API Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/issues", issueRoutes);
-app.use("/api/users", userRoutes);
+// API// Routes
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/issues", require("./routes/issues"));
+app.use("/api/users", require("./routes/users"));
+app.use("/api/admin", require("./routes/admin"));
+app.use("/api/staff", require("./routes/staff"));
 
 // 404 handler
 app.use((req, res) => {

@@ -16,6 +16,10 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 
 // Connect to MongoDB
 connectDB().then(() => {
+  // Start Background Monitoring Service
+  const MonitoringService = require("./services/MonitoringService");
+  MonitoringService.start();
+
   // Start server only after database is connected
   const server = app.listen(PORT, () => {
     console.log("\n============================================");

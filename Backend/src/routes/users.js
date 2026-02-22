@@ -1,23 +1,17 @@
 const router = require("express").Router();
 const User = require("../models/User");
+const Staff = require("../models/Staff");
 const authMiddleware = require("../middleware/authMiddleware");
+const dbUserMiddleware = require("../middleware/dbUserMiddleware");
 
 /**
  * @route   GET /api/users/me
  * @desc    Get current logged-in user's profile
  * @access  Protected (requires Firebase ID token)
  */
-router.get("/me", authMiddleware, async (req, res) => {
+router.get("/me", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.user.email });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found. Please register first.",
-        error: "USER_NOT_FOUND"
-      });
-    }
+    const user = req.dbUser;
 
     return res.json({
       success: true,
@@ -50,19 +44,10 @@ router.get("/me", authMiddleware, async (req, res) => {
  * @access  Protected (requires Firebase ID token)
  * @body    { name?, phone?, department? }
  */
-router.put("/me", authMiddleware, async (req, res) => {
+router.put("/me", authMiddleware, dbUserMiddleware, async (req, res) => {
   try {
     const { name, phone, department } = req.body;
-
-    const user = await User.findOne({ email: req.user.email });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-        error: "USER_NOT_FOUND"
-      });
-    }
+    const user = req.dbUser;
 
     // Update only allowed fields
     if (name) user.name = name.trim();
@@ -117,7 +102,11 @@ router.put("/me", authMiddleware, async (req, res) => {
  */
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    let user = await User.findById(req.params.id);
+
+    if (!user) {
+      user = await Staff.findById(req.params.id);
+    }
 
     if (!user) {
       return res.status(404).json({
