@@ -7,6 +7,11 @@ const Staff = require("../models/Staff");
  */
 const dbUserMiddleware = async (req, res, next) => {
     try {
+        // If authMiddleware already set the dbUser (e.g. dev bypass), we can skip the lookup
+        if (req.dbUser) {
+            return next();
+        }
+
         const firebaseUid = req.user?.uid;
 
         if (!firebaseUid) {

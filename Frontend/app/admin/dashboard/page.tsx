@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -533,8 +533,8 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <div className="flex">
-        <aside className={`${sidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-80 bg-card border-r border-border p-6 md:sticky md:top-16 md:h-[calc(100vh-64px)] overflow-y-auto`}>
+      <div className="flex relative w-full">
+        <aside className={`${sidebarOpen ? 'fixed inset-y-0 left-0 z-40 mt-[73px]' : 'hidden'} md:static md:mt-0 md:block w-[85%] sm:w-80 bg-card border-r border-border p-6 md:sticky md:top-16 h-[calc(100vh-73px)] md:h-[calc(100vh-64px)] overflow-y-auto`}>
           <div className="space-y-4">
             <h2 className="font-semibold flex items-center gap-2"><Filter className="w-4 h-4" />Search & Filter</h2>
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Title, description, location" />

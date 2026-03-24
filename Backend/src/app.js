@@ -11,7 +11,9 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      callback(null, true); // Allow all origins for Capacitor compatibility
+    },
     credentials: true,
     optionsSuccessStatus: 200
   })

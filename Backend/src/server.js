@@ -21,7 +21,7 @@ connectDB().then(() => {
   MonitoringService.start();
 
   // Start server only after database is connected
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log("\n============================================");
     console.log("Campus Issue Resolver Backend Server");
     console.log("============================================");

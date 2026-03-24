@@ -26,6 +26,7 @@ const authMiddleware = async (req, res, next) => {
           name: targetUser.name,
           firebase_uid: targetUser.firebaseUid || `dev_${targetUser.email}`
         };
+        req.dbUser = targetUser; // Automatically skips lookup in dbUserMiddleware
         console.log(`[AUTH DEBUG] Logged in as: ${targetUser.email}`);
         return next();
       } else {

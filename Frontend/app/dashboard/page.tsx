@@ -187,7 +187,7 @@ export default function Dashboard() {
             <h2 className="text-2xl font-bold text-foreground">My Issues</h2>
             {filteredIssues.length > 0 ? (
               filteredIssues.map((issue) => (
-                <Link key={issue.id} href={`/issue/${issue.id}`}>
+                <Link key={issue.id} href={`/issue-details?id=${issue.id}`}>
                   <Card className="p-5 hover:shadow-md transition-shadow cursor-pointer">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                       <div>

@@ -75,20 +75,20 @@ function TeacherDashboardContent() {
                     <div className="flex gap-3 items-center">
                         <ThemeToggle />
                         <Link href="/profile">
-                            <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                            <Button variant="outline" size="sm" className="gap-2 bg-transparent px-2 sm:px-3">
                                 <User className="w-4 h-4" />
-                                Profile
+                                <span className="hidden sm:inline">Profile</span>
                             </Button>
                         </Link>
                         <Link href="/report-issue">
-                            <Button className="gap-2 bg-primary hover:bg-primary/90 transition-all hover:scale-105 shadow-md">
+                            <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 transition-all hover:scale-105 shadow-md px-2 sm:px-3">
                                 <Plus className="w-4 h-4" />
-                                Report Issue
+                                <span className="hidden sm:inline">Report Issue</span>
                             </Button>
                         </Link>
-                        <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
+                        <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 sm:px-3">
                             <LogOut className="w-4 h-4" />
-                            Logout
+                            <span className="hidden sm:inline">Logout</span>
                         </Button>
                     </div>
                 </div>
@@ -191,12 +191,12 @@ function TeacherDashboardContent() {
                                         <span>{issue.location}</span>
                                     </div>
 
-                                    <div className="mt-auto pt-4 border-t border-border/20 flex gap-2">
-                                        <Link href={`/issue/${issue._id}`} className="flex-1">
+                                    <div className="mt-auto pt-4 border-t border-border/20 flex flex-col sm:flex-row gap-2">
+                                        <Link href={`/issue-details?id=${issue._id}`} className="flex-1">
                                             <Button variant="outline" size="sm" className="w-full text-xs font-semibold h-9 bg-transparent hover:bg-primary/5">Details</Button>
                                         </Link>
                                         {issue.status === 'resolved' && (
-                                            <Link href={`/issue/${issue._id}#rating-section`} className="flex-1">
+                                            <Link href={`/issue-details?id=${issue._id}#rating-section`} className="flex-1">
                                                 <Button variant="ghost" size="sm" className="w-full text-xs font-bold gap-1 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10 h-9">
                                                     <Star className={`w-3 h-3 ${issue.rating ? 'fill-current' : ''}`} />
                                                     {issue.rating ? `${issue.rating.score}/5` : 'Rate'}

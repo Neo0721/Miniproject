@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -95,7 +95,7 @@ function StaffDashboardContent() {
       if (isResolvingStaff) {
         try {
           const [issues, profile] = await Promise.all([
-            fetchIssues(50),
+            fetchIssues({ limit: 50 }),
             fetchUserProfile()
           ])
           setAllIssues(issues || [])
@@ -148,10 +148,10 @@ function StaffDashboardContent() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-3">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-primary">Operations Center</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-primary">Operations Center</h1>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 capitalize">
                 <span className={`w-2 h-2 rounded-full ${availability === 'available' ? 'bg-green-500' : availability === 'offline' ? 'bg-gray-500' : 'bg-orange-500'}`}></span>
                 {userName} • {availability.replace('_', ' ')}
@@ -160,6 +160,17 @@ function StaffDashboardContent() {
           </div>
           <div className="flex gap-4 items-center">
             {/* Availability UI */}
+            <div className="md:hidden">
+              <select
+                value={availability}
+                onChange={(e) => void handleStatusToggle(e.target.value as any)}
+                className="bg-muted text-[10px] font-bold uppercase tracking-tight py-1.5 px-2 rounded-md border border-border/50 text-primary"
+              >
+                <option value="available">Available</option>
+                <option value="on_break">On Break</option>
+                <option value="offline">Offline</option>
+              </select>
+            </div>
             <div className="hidden md:flex bg-muted p-1 rounded-lg gap-1 border border-border/50 shadow-inner">
               {[
                 { id: 'available', label: 'Go Available', color: 'hover:bg-green-500' },
@@ -241,7 +252,7 @@ function StaffDashboardContent() {
               {allIssues
                 .filter(i => i.status !== 'resolved')
                 .map(issue => (
-                  <Link key={issue.id} href={`/issue/${issue.id}`}>
+                  <Link key={issue.id} href={`/issue-details?id=${issue.id}`}>
                     <Card className="group bg-card/50 hover:bg-card border border-border/50 hover:border-primary transition-all p-0 overflow-hidden shadow-sm relative">
                       {issue.priority === 'high' && (
                         <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
@@ -290,7 +301,7 @@ function StaffDashboardContent() {
                           <div className="text-[10px] text-muted-foreground/60 font-mono">
                             ID: {issue.id?.slice(-8).toUpperCase()} • {new Date(issue.createdAt || '').toLocaleDateString()}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-0">
                             {issue.status === 'pending' && (
                               <Button
                                 size="sm"
@@ -332,7 +343,7 @@ function StaffDashboardContent() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {allIssues.filter(i => i.status === 'resolved').slice(0, 6).map(issue => (
-                <Link key={issue.id} href={`/issue/${issue.id}`}>
+                <Link key={issue.id} href={`/issue-details?id=${issue.id}`}>
                   <Card className="p-4 hover:bg-muted/30 transition-all cursor-pointer border-green-500/10 hover:border-green-500/30 group">
                     <div className="flex justify-between items-center mb-1">
                       <h4 className="font-bold text-xs truncate flex-grow group-hover:text-green-600 transition-colors uppercase tracking-tight">{issue.title}</h4>

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import IssueAssistant, { type IssueAssistantSuggestion } from '@/components/issue-assistant'
 import { createIssue, fetchIssues, type Issue, type IssueAttachment, type IssuePriority } from '@/lib/api'
-import { ACADEMIC_DEPARTMENTS, BUILDING_FLOORS, CAMPUS_BUILDINGS, DEPARTMENT_CATEGORIES, ISSUE_TAGS, ISSUE_TEMPLATES } from '@/lib/issue-config'
+import { BUILDING_FLOORS, CAMPUS_BUILDINGS, DEPARTMENT_CATEGORIES, ISSUE_TAGS, ISSUE_TEMPLATES } from '@/lib/issue-config'
 
 interface FormErrors {
   title?: string
@@ -462,7 +462,7 @@ export default function ReportIssuePage() {
                 <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2">Similar issues already reported</p>
                 <div className="space-y-1">
                   {similarIssues.map((issue) => (
-                    <Link key={issue.id} href={`/issue/${issue.id}`} className="block text-sm underline text-amber-700 dark:text-amber-300">
+                    <Link key={issue.id} href={`/issue-details?id=${issue.id}`} className="block text-sm underline text-amber-700 dark:text-amber-300">
                       {issue.title} - {issue.building} / {issue.floor} / {issue.room}
                     </Link>
                   ))}
@@ -528,11 +528,11 @@ export default function ReportIssuePage() {
 
             {errors.general && <p className="text-red-600 text-sm">{errors.general}</p>}
 
-            <div className="flex gap-4">
-              <Button type="submit" disabled={isLoading} className="flex-1 bg-primary hover:bg-primary/90 text-white">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button type="submit" disabled={isLoading} className="flex-1 bg-primary hover:bg-primary/90 text-white order-1 sm:order-none">
                 {isLoading ? 'Submitting...' : 'Submit Issue'}
               </Button>
-              <Link href="/dashboard/student" className="flex-1">
+              <Link href="/dashboard/student" className="w-full sm:flex-1 order-2 sm:order-none">
                 <Button variant="outline" className="w-full bg-transparent">
                   Cancel
                 </Button>

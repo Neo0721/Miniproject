@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -83,19 +83,19 @@ function StudentDashboardContent() {
           <div className="flex gap-3 items-center">
             <ThemeToggle />
             <Link href="/profile">
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+              <Button variant="outline" size="sm" className="gap-2 bg-transparent px-2 sm:px-3">
                 <User className="w-4 h-4" />
-                Profile
+                <span className="hidden sm:inline">Profile</span>
               </Button>
             </Link>
             <Button
               variant="outline"
               size="sm"
-              className="gap-2 text-red-600 hover:text-red-700 bg-transparent"
+              className="gap-2 text-red-600 hover:text-red-700 bg-transparent px-2 sm:px-3"
               onClick={logoutUser}
             >
               <LogOut className="w-4 h-4" />
-              Logout
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
@@ -200,14 +200,14 @@ function StudentDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <Link href={`/issue/${complaint.id || (complaint as any)._id}`} className="flex-1">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Link href={`/issue-details?id=${complaint.id || (complaint as any)._id}`} className="flex-1">
                       <Button variant="outline" size="sm" className="w-full bg-transparent">
                         View Details
                       </Button>
                     </Link>
                     {complaint.status === 'resolved' && (
-                      <Link href={`/issue/${complaint.id || (complaint as any)._id}#rating-section`} className="flex-1">
+                      <Link href={`/issue-details?id=${complaint.id || (complaint as any)._id}#rating-section`} className="flex-1">
                         <Button variant={complaint.rating ? "ghost" : "default"} size="sm" className="w-full gap-2">
                           <Star className={`w-4 h-4 ${complaint.rating ? "text-yellow-500 fill-yellow-500" : ""}`} />
                           {complaint.rating ? `${complaint.rating.score}/5` : "Rate Resolution"}

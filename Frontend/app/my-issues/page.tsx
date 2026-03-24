@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -145,7 +145,7 @@ export default function MyIssuesPage() {
           {filteredIssues.length > 0 ? (
             <div className="grid gap-4">
               {filteredIssues.map((issue) => (
-                <Link key={issue.id} href={`/issue/${issue.id}`}>
+                <Link key={issue.id} href={`/issue-details?id=${issue.id}`}>
                   <Card className="p-6 hover:shadow-lg hover:border-primary transition-all cursor-pointer group animate-fade-in-up">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">

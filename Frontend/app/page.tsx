@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useEffect, useState } from 'react'
-import { CheckCircle, FileText, Zap, AlertCircle, Wifi, Home, Book, Shield } from 'lucide-react'
+import { CheckCircle, FileText, Zap, AlertCircle, Wifi, Home, Book, Shield, Menu, X } from 'lucide-react'
 import { APP_NAME, APP_SHORT_NAME, CAMPUS_NAME, ORG_NAME } from '@/lib/branding'
 
 export default function LandingPage() {
   const [role, setRole] = useState<string | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   useEffect(() => {
     try {
@@ -72,7 +73,7 @@ export default function LandingPage() {
               <a href="#categories" className="text-foreground hover:text-primary transition">Categories</a>
               <a href="#transparency" className="text-foreground hover:text-primary transition">Status</a>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="hidden md:flex gap-2 items-center">
               <ThemeToggle />
               {role === 'admin' && (
                 <Link href="/admin/dashboard">
@@ -86,7 +87,37 @@ export default function LandingPage() {
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">Get Started</Button>
               </Link>
             </div>
+            
+            {/* Mobile Toggle */}
+            <div className="md:hidden flex items-center">
+              <ThemeToggle />
+              <button className="ml-3 text-foreground" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
+          
+          {/* Mobile Menu Content */}
+          {isMenuOpen && (
+            <div className="md:hidden flex flex-col gap-4 py-4 border-t border-border bg-card animate-in fade-in slide-in-from-top-4">
+              <a href="#how-it-works" className="text-foreground font-medium px-2" onClick={() => setIsMenuOpen(false)}>How It Works</a>
+              <a href="#categories" className="text-foreground font-medium px-2" onClick={() => setIsMenuOpen(false)}>Categories</a>
+              <a href="#transparency" className="text-foreground font-medium px-2" onClick={() => setIsMenuOpen(false)}>Status</a>
+              <div className="flex flex-col gap-2 mt-2 px-2">
+                {role === 'admin' && (
+                  <Link href="/admin/dashboard" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start">Admin</Button>
+                  </Link>
+                )}
+                <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">Login</Button>
+                </Link>
+                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">Get Started</Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 

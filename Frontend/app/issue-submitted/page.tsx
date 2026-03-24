@@ -19,7 +19,7 @@ function IssueSubmittedContent() {
       department="Operations Team"
       primaryAction={{
         label: 'Track This Issue',
-        href: `/issue/${issueId}`
+        href: `/issue-details?id=${issueId}`
       }}
       secondaryAction={{
         label: 'Report Another Issue',

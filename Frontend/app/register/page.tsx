@@ -44,11 +44,11 @@ export default function RegisterRoleSelection() {
                 <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-6 group-hover:bg-secondary/20 transition-colors">
                   <Users className="w-8 h-8 text-secondary" />
                 </div>
-                <h2 className="text-2xl font-bold text-foreground mb-3">Teacher</h2>
+                <h2 className="text-2xl font-bold text-foreground mb-3">Staff</h2>
                 <p className="text-muted-foreground mb-6 flex-1">
                   Manage departmental issues, update status, and coordinate resolutions
                 </p>
-                <Button className="w-full bg-secondary hover:bg-secondary/90 text-white">Create Teacher Account</Button>
+                <Button className="w-full bg-secondary hover:bg-secondary/90 text-white">Create Staff Account</Button>
               </Card>
             </Link>
 
