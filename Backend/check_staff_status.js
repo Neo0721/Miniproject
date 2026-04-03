@@ -9,7 +9,7 @@ async function checkStaff() {
 
         console.log("--- Checking Staff Availability ---");
 
-        const departments = ["Mechanical", "IT", "Facilities", "Computer Science", "Administration"];
+        const departments = ["Mechanical", "IT", "Facilities", "Computer Engineering", "Administration"];
 
         for (const dept of departments) {
             const staffUsers = await User.find({ role: "staff", department: dept });

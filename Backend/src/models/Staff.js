@@ -72,6 +72,13 @@ const StaffSchema = new mongoose.Schema(
         currentActiveIssues: {
             type: Number,
             default: 0
+        },
+
+        // FCM push notification token
+        fcmToken: {
+            type: String,
+            trim: true,
+            sparse: true
         }
     },
     { timestamps: true }

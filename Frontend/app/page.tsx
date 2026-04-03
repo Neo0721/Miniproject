@@ -1,14 +1,16 @@
- 'use client'
+'use client'
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { CheckCircle, FileText, Zap, AlertCircle, Wifi, Home, Book, Shield, Menu, X } from 'lucide-react'
 import { APP_NAME, APP_SHORT_NAME, CAMPUS_NAME, ORG_NAME } from '@/lib/branding'
 
 export default function LandingPage() {
+  const router = useRouter()
   const [role, setRole] = useState<string | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -16,10 +18,20 @@ export default function LandingPage() {
     try {
       const r = localStorage.getItem('role')
       setRole(r)
+
+      if (r) {
+        // Persistence: auto-redirect already logged-in users to their dashboard
+        const dashboard =
+          r === 'admin' ? '/admin/dashboard' :
+          (r === 'staff' || r === 'resolving_staff') ? '/staff/dashboard' :
+          r === 'teacher' ? '/dashboard/teacher' :
+          '/dashboard'
+        router.push(dashboard)
+      }
     } catch (e) {
       setRole(null)
     }
-  }, [])
+  }, [router])
   const categories = [
     { icon: AlertCircle, label: 'Classroom Equipment', color: 'text-blue-600' },
     { icon: Wifi, label: 'WiFi / IT', color: 'text-purple-600' },
@@ -64,7 +76,7 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
-              FA
+              HC
             </div>
             <span className="font-bold text-lg text-primary">{APP_NAME}</span>
             </div>

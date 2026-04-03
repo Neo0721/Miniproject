@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState } from 'react'
 import Link from 'next/link'
@@ -9,6 +9,7 @@ import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
+import { APP_SHORT_NAME } from '@/lib/branding'
 
 interface FormErrors {
   email?: string
@@ -151,9 +152,9 @@ export default function LoginPage() {
         </Link>
 
         <Card className="p-8 shadow-lg animate-fade-in-up">
-          <div className="mb-8">
+          <div className="mb-8 font-outfit">
             <h1 className="text-3xl font-bold text-foreground mb-2">Sign In</h1>
-            <p className="text-muted-foreground">Access your campus issue dashboard</p>
+            <p className="text-muted-foreground">Access your {APP_SHORT_NAME} dashboard</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -239,7 +240,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">New to HCAP?</span>
+                <span className="px-2 bg-card text-muted-foreground">New to {APP_SHORT_NAME}?</span>
               </div>
             </div>
 

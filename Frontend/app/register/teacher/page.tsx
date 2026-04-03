@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState } from 'react'
 import Link from 'next/link'
@@ -190,14 +190,8 @@ export default function TeacherRegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Department</label>
-              <select name="department" value={formData.department} onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${errors.department ? 'border-red-500' : 'border-border'}`}>
-                <option value="">Select department</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Electronics">Electronics</option>
-                <option value="Mechanical">Mechanical</option>
-                <option value="Civil">Civil</option>
-              </select>
+              <Input type="text" name="department" value={formData.department} onChange={handleInputChange}
+                placeholder="e.g. Computer Engineering" className={errors.department ? 'border-red-500' : ''} />
               {errors.department && <p className="text-red-600 text-xs mt-1">{errors.department}</p>}
             </div>
 

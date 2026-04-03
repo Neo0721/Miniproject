@@ -93,7 +93,7 @@ const IssueSchema = new mongoose.Schema(
           "Mechanical",
           "Electronics",
           "Civil",
-          "Computer Science",
+          "Computer Engineering",
           "Administration"
         ],
         message: "Invalid category"
@@ -197,6 +197,10 @@ const IssueSchema = new mongoose.Schema(
     escalated: { type: Boolean, default: false },
     escalatedAt: Date,
     resolvedAt: Date,
+    lastReminderSentAt: {
+      type: Date,
+      default: null
+    },
     assetId: {
       type: String,
       trim: true

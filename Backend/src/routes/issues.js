@@ -57,7 +57,7 @@ router.post("/", authMiddleware, dbUserMiddleware, async (req, res) => {
       "Mechanical",
       "Electronics",
       "Civil",
-      "Computer Science",
+      "Computer Engineering",
       "Administration"
     ];
 
@@ -479,9 +479,18 @@ router.patch("/:id", authMiddleware, dbUserMiddleware, async (req, res) => {
           });
           if (normalizedStatus === "resolved") {
             issue.resolvedAt = new Date();
+            // Notify reporter that their issue was resolved (non-blocking)
+            setImmediate(async () => {
+              try {
+                const NotificationService = require("../services/NotificationService");
+                const fullIssue = await Issue.findById(issue._id).populate("reportedBy", "name email fcmToken");
+                if (fullIssue) NotificationService.triggerResolutionAlert(fullIssue);
+              } catch (e) { /* silent */ }
+            });
           }
         }
         break;
+
 
       case "assign":
         if (payload.assignee) {

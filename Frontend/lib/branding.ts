@@ -1,4 +1,4 @@
-export const APP_NAME = 'Father Agnel Issue Resolver'
-export const APP_SHORT_NAME = 'FAIR'
-export const CAMPUS_NAME = 'Father Agnel, Vashi'
-export const ORG_NAME = 'Fr. Conceicao Rodrigues Institute (Father Agnel), Vashi'
+export const APP_NAME = 'Hyperlocal Community Action Platform'
+export const APP_SHORT_NAME = 'HCAP'
+export const CAMPUS_NAME = 'Community'
+export const ORG_NAME = 'HCAP Network'

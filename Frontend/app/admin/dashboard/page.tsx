@@ -92,7 +92,7 @@ export default function AdminDashboard() {
   const { toast } = useToast()
   const [issues, setIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
@@ -487,341 +487,342 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url)
   }
 
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>
+  const [activeTab, setActiveTab] = useState<'overview' | 'issues' | 'staff' | 'filters'>('overview')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Loading...</div>
 
   return (
     <div className="min-h-screen bg-background">
+      {/* ── Header ── */}
       <header className="bg-card border-b border-border sticky top-0 z-40">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center gap-3">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden p-2 hover:bg-muted rounded-lg">
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-            <div>
-              <p className="text-sm text-muted-foreground">{CAMPUS_NAME}</p>
-              <h1 className="font-bold text-primary">{APP_NAME} - Admin</h1>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex justify-between items-center gap-2">
+          <div>
+            <p className="text-xs text-muted-foreground hidden sm:block">{CAMPUS_NAME}</p>
+            <h1 className="font-bold text-primary text-base leading-tight">{APP_NAME} — Admin</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button className="relative p-2 rounded-md hover:bg-muted" aria-label="Notifications">
               <Bell className="w-5 h-5" />
               {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white">
+                <span className="absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white leading-none">
                   {unreadNotifications}
                 </span>
               )}
             </button>
             <ThemeToggle />
-            <Button variant="outline" size="sm" onClick={() => void loadIssues(false)} className="gap-2">
-              <RefreshCw className="w-4 h-4" />Refresh
-            </Button>
-            <Button size="sm" className="gap-2" onClick={exportCsv}>
-              <Download className="w-4 h-4" />CSV
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-2">
-              <Download className="w-4 h-4" />PDF
-            </Button>
+            <button onClick={() => void loadIssues(false)} className="p-2 rounded-md hover:bg-muted" aria-label="Refresh">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button onClick={exportCsv} className="p-2 rounded-md hover:bg-muted" aria-label="Export CSV">
+              <Download className="w-4 h-4" />
+            </button>
             <Link href="/profile">
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                <User className="w-4 h-4" />Profile
-              </Button>
+              <button className="p-2 rounded-md hover:bg-muted" aria-label="Profile">
+                <User className="w-4 h-4" />
+              </button>
             </Link>
-            <Button variant="outline" size="sm" className="gap-2 bg-transparent" onClick={() => logoutAndRedirect()}>
-              <LogOut className="w-4 h-4" />Logout
-            </Button>
+            <button className="p-2 rounded-md hover:bg-muted text-red-500" aria-label="Logout" onClick={() => logoutAndRedirect()}>
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
+        </div>
+
+        {/* ── Tab bar ── */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto pb-0 scrollbar-hide">
+          {([
+            { id: 'overview', label: 'Overview' },
+            { id: 'issues',   label: `Issues (${filteredIssues.length})` },
+            { id: 'staff',    label: 'Staff' },
+            { id: 'filters',  label: 'Filters' },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 
-      <div className="flex relative w-full">
-        <aside className={`${sidebarOpen ? 'fixed inset-y-0 left-0 z-40 mt-[73px]' : 'hidden'} md:static md:mt-0 md:block w-[85%] sm:w-80 bg-card border-r border-border p-6 md:sticky md:top-16 h-[calc(100vh-73px)] md:h-[calc(100vh-64px)] overflow-y-auto`}>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 space-y-4">
+
+        {/* ───────── OVERVIEW TAB ───────── */}
+        {activeTab === 'overview' && (
           <div className="space-y-4">
-            <h2 className="font-semibold flex items-center gap-2"><Filter className="w-4 h-4" />Search & Filter</h2>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Title, description, location" />
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="in-progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-            </select>
-            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">All Priority</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">All Departments</option>
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-            <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">All Tags</option>
-              {tags.map((tag) => (
-                <option key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
-            <select value={escalatedFilter} onChange={(e) => setEscalatedFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">Escalated: All</option>
-              <option value="true">Escalated Only</option>
-              <option value="false">Not Escalated</option>
-            </select>
-            <select value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">Assignment: All</option>
-              <option value="Assigned">Assigned</option>
-              <option value="Unassigned">Unassigned</option>
-            </select>
-            <select
-              value={buildingFilter}
-              onChange={(e) => {
-                setBuildingFilter(e.target.value)
-                setFloorFilter('all')
-              }}
-              className="w-full px-3 py-2 border border-border rounded-md bg-background"
-            >
-              <option value="all">Select Option</option>
-              {buildings.map((building) => (
-                <option key={building} value={building}>{building}</option>
-              ))}
-            </select>
-            <select value={floorFilter} onChange={(e) => setFloorFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">Select Option</option>
-              {floors.map((floor) => (
-                <option key={floor} value={floor}>{floor}</option>
-              ))}
-            </select>
-            <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background">
-              <option value="all">All Rooms</option>
-              {rooms.map((room) => (
-                <option key={room} value={room}>{room}</option>
-              ))}
-            </select>
-            <label className="flex items-center justify-between text-sm border border-border rounded-md px-3 py-2">
-              <span>Timetable impact only</span>
-              <input type="checkbox" checked={timetableOnly} onChange={(e) => setTimetableOnly(e.target.checked)} />
-            </label>
-
-            <div className="pt-3 border-t border-border">
-              <h3 className="font-semibold flex items-center gap-2 mb-2"><Settings2 className="w-4 h-4" />Dashboard Widgets</h3>
-              {Object.entries(widgets).map(([key, value]) => (
-                <label key={key} className="flex items-center justify-between text-sm py-1">
-                  <span className="capitalize">{key.replace(/[A-Z]/g, (m) => ` ${m}`).trim()}</span>
-                  <input
-                    type="checkbox"
-                    checked={value}
-                    onChange={(e) => saveWidgets({ ...widgets, [key]: e.target.checked })}
-                  />
-                </label>
-              ))}
+            {/* Quick stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { label: 'Total',       value: quickStats.total,              icon: AlertCircle },
+                { label: 'Pending',     value: quickStats.pending,            icon: Clock },
+                { label: 'In Progress', value: quickStats.inProgress,         icon: TrendingUp },
+                { label: 'Resolved',    value: quickStats.resolved,           icon: CheckCircle },
+                { label: 'Avg Time',    value: minutesToHours(quickStats.avgResolutionMinutes), icon: Search },
+              ].map((stat) => {
+                const Icon = stat.icon
+                return (
+                  <Card key={stat.label} className="p-3 sm:p-4">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">{stat.label}</p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <p className="text-2xl font-bold">{stat.value}</p>
+                      <Icon className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </Card>
+                )
+              })}
             </div>
-          </div>
-        </aside>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            {[
-              { label: 'Total', value: quickStats.total, icon: AlertCircle },
-              { label: 'Pending', value: quickStats.pending, icon: Clock },
-              { label: 'In Progress', value: quickStats.inProgress, icon: TrendingUp },
-              { label: 'Resolved', value: quickStats.resolved, icon: CheckCircle },
-              { label: 'Avg Resolution', value: minutesToHours(quickStats.avgResolutionMinutes), icon: Search }
-            ].map((stat) => {
-              const Icon = stat.icon
-              return (
-                <Card key={stat.label} className="p-4">
-                  <p className="text-xs text-muted-foreground uppercase">{stat.label}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                    <Icon className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6">
-              <h3 className="font-bold mb-4">Status Distribution</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={90}>
-                    {statusDistribution.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card>
-
-            {widgets.responseMetrics && (
-              <Card className="p-6">
-                <h3 className="font-bold mb-4">Response Time Metrics by Category</h3>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={responseByCategory}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" hide />
-                    <YAxis />
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card className="p-4">
+                <h3 className="font-bold mb-3 text-sm">Status Distribution</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={80}>
+                      {statusDistribution.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
                     <Tooltip />
-                    <Bar dataKey="avgHours" fill="#2563eb" radius={[6, 6, 0, 0]} />
-                  </BarChart>
+                    <Legend />
+                  </PieChart>
                 </ResponsiveContainer>
               </Card>
-            )}
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {widgets.staffPerformance && (
-              <Card className="p-6 lg:col-span-1">
-                <h3 className="font-bold mb-3">Staff Performance</h3>
-                <div className="space-y-2 text-sm">
-                  {staffPerformance.length === 0 && <p className="text-muted-foreground">No assignee data yet.</p>}
-                  {staffPerformance.map((item) => (
-                    <div key={item.name} className="border border-border rounded p-2">
-                      <p className="font-semibold">{item.name}</p>
-                      <p className="text-muted-foreground">Resolved: {item.resolved} | Avg: {item.avgHours ? `${item.avgHours}h` : 'N/A'}</p>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
+              {widgets.responseMetrics && (
+                <Card className="p-4">
+                  <h3 className="font-bold mb-3 text-sm">Avg Response Time by Category</h3>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={responseByCategory}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="category" hide />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="avgHours" fill="#2563eb" radius={[6,6,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              )}
+            </div>
 
-            {widgets.commonIssues && (
-              <Card className="p-6 lg:col-span-1">
-                <h3 className="font-bold mb-3">Common Issues (AI Pattern)</h3>
-                <div className="space-y-2 text-sm">
-                  {recurringInsights.length === 0 && <p className="text-muted-foreground">No recurring pattern detected.</p>}
-                  {recurringInsights.map((item) => (
-                    <div key={item.keyword} className="border border-border rounded p-2 flex justify-between">
-                      <span>#{item.keyword}</span>
-                      <span className="font-semibold">{item.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {widgets.heatmap && (
-              <Card className="p-6 lg:col-span-1">
-                <h3 className="font-bold mb-3">Complaints Heatmap (Top Areas)</h3>
-                <div className="space-y-2 text-sm">
-                  {heatmapData.map((entry) => {
-                    const intensity = Math.min(100, entry.complaints * 20)
-                    return (
-                      <div key={entry.location}>
-                        <div className="flex justify-between mb-1">
-                          <span>{entry.location}</span>
-                          <span>{entry.complaints}</span>
-                        </div>
-                        <div className="h-2 rounded bg-muted">
-                          <div className="h-2 rounded bg-red-500" style={{ width: `${intensity}%` }} />
-                        </div>
+            {/* Insights row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {widgets.staffPerformance && (
+                <Card className="p-4">
+                  <h3 className="font-bold mb-3 text-sm">Staff Performance</h3>
+                  <div className="space-y-2 text-sm">
+                    {staffPerformance.length === 0 && <p className="text-muted-foreground text-xs">No assignee data yet.</p>}
+                    {staffPerformance.map((item) => (
+                      <div key={item.name} className="border border-border rounded p-2">
+                        <p className="font-semibold text-xs">{item.name}</p>
+                        <p className="text-muted-foreground text-xs">Resolved: {item.resolved} · Avg: {item.avgHours ? `${item.avgHours}h` : 'N/A'}</p>
                       </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {widgets.commonIssues && (
+                <Card className="p-4">
+                  <h3 className="font-bold mb-3 text-sm">Common Issues (Pattern)</h3>
+                  <div className="space-y-2">
+                    {recurringInsights.length === 0 && <p className="text-muted-foreground text-xs">No recurring pattern detected.</p>}
+                    {recurringInsights.map((item) => (
+                      <div key={item.keyword} className="border border-border rounded p-2 flex justify-between text-xs">
+                        <span>#{item.keyword}</span>
+                        <span className="font-semibold">{item.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {widgets.heatmap && (
+                <Card className="p-4">
+                  <h3 className="font-bold mb-3 text-sm">Complaints Heatmap</h3>
+                  <div className="space-y-2">
+                    {heatmapData.map((entry) => {
+                      const intensity = Math.min(100, entry.complaints * 20)
+                      return (
+                        <div key={entry.location}>
+                          <div className="flex justify-between mb-1 text-xs">
+                            <span className="truncate pr-2">{entry.location}</span>
+                            <span className="shrink-0">{entry.complaints}</span>
+                          </div>
+                          <div className="h-1.5 rounded bg-muted">
+                            <div className="h-1.5 rounded bg-red-500" style={{ width: `${intensity}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Campus map + Fast-track */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card className="p-4">
+                <h3 className="font-bold mb-2 text-sm flex items-center gap-2"><MapPin className="w-4 h-4" />{CAMPUS_NAME} Map</h3>
+                <p className="text-xs text-muted-foreground mb-3">Tap a zone to filter issues by building.</p>
+                <div className="relative w-full h-56 rounded-xl border border-border overflow-hidden bg-gradient-to-b from-sky-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+                  {CAMPUS_MAP_ZONES.map((zone) => {
+                    const data = campusPinMap.get(zone.building)
+                    const intensity = data?.intensity ?? 0
+                    const count = data?.count ?? 0
+                    const active = buildingFilter === zone.building
+                    const alpha = Math.max(0.15, intensity / 100)
+                    return (
+                      <button
+                        key={zone.building}
+                        type="button"
+                        onClick={() => {
+                          setBuildingFilter((prev) => (prev === zone.building ? 'all' : zone.building))
+                          setFloorFilter('all')
+                        }}
+                        className={`absolute rounded-xl border text-left transition ${active ? 'border-primary ring-2 ring-primary/40' : 'border-slate-400/50'}`}
+                        style={{ left:`${zone.x}%`, top:`${zone.y}%`, width:`${zone.w}%`, height:`${zone.h}%`, backgroundColor:`rgba(239,68,68,${alpha})` }}
+                      >
+                        <div className="p-2 h-full flex flex-col justify-between">
+                          <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{zone.building}</p>
+                          <p className="text-[10px] text-slate-800 dark:text-slate-200">{count} issue(s)</p>
+                        </div>
+                      </button>
                     )
                   })}
+                  <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] text-slate-600 dark:text-slate-300">
+                    <span>Low</span>
+                    <div className="h-1.5 flex-1 mx-2 rounded bg-gradient-to-r from-yellow-300 via-orange-400 to-red-600" />
+                    <span>High</span>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => { setBuildingFilter('all'); setFloorFilter('all') }}>Clear Filter</Button>
+                  <span className="text-xs text-muted-foreground">Active: {buildingFilter === 'all' ? 'None' : buildingFilter}</span>
                 </div>
               </Card>
-            )}
-          </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card className="p-6">
-              <h3 className="font-bold mb-3 flex items-center gap-2"><MapPin className="w-4 h-4" />{CAMPUS_NAME} Map Pins & Heat Overlay</h3>
-              <p className="text-xs text-muted-foreground mb-3">Click a zone to filter issues by building.</p>
-              <div className="relative w-full h-72 rounded-xl border border-border overflow-hidden bg-gradient-to-b from-sky-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-                {CAMPUS_MAP_ZONES.map((zone) => {
-                  const data = campusPinMap.get(zone.building)
-                  const intensity = data?.intensity ?? 0
-                  const count = data?.count ?? 0
-                  const active = buildingFilter === zone.building
-                  const alpha = Math.max(0.15, intensity / 100)
-                  return (
-                    <button
-                      key={zone.building}
-                      type="button"
-                      onClick={() => {
-                        setBuildingFilter((prev) => (prev === zone.building ? 'all' : zone.building))
-                        setFloorFilter('all')
-                      }}
-                      className={`absolute rounded-xl border text-left transition hover:scale-[1.01] ${active ? 'border-primary ring-2 ring-primary/40' : 'border-slate-400/50'
-                        }`}
-                      style={{
-                        left: `${zone.x}%`,
-                        top: `${zone.y}%`,
-                        width: `${zone.w}%`,
-                        height: `${zone.h}%`,
-                        backgroundColor: `rgba(239, 68, 68, ${alpha})`
-                      }}
-                    >
-                      <div className="p-3 h-full flex flex-col justify-between">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{zone.building}</p>
-                        <p className="text-xs text-slate-800 dark:text-slate-200">{count} issue(s)</p>
+              <Card className="p-4">
+                <h3 className="font-bold mb-2 text-sm flex items-center gap-2"><BookOpenCheck className="w-4 h-4" />Timetable Fast-Track Queue</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {isLectureHours ? '🔴 Lecture hours — fast-track ON' : '⚪ Outside hours — queue for planning'}
+                </p>
+                <div className="space-y-2">
+                  {fastTrackQueue.map((issue) => (
+                    <div key={issue.id} className="border border-border rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <p className="text-sm font-semibold leading-snug">{issue.title}</p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${priorityClass(issue.priority || 'low')}`}>{(issue.priority || 'low').toUpperCase()}</span>
                       </div>
-                    </button>
-                  )
-                })}
-                <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
-                  <span>Low</span>
-                  <div className="h-2 flex-1 mx-2 rounded bg-gradient-to-r from-yellow-300 via-orange-400 to-red-600" />
-                  <span>High</span>
+                      <p className="text-xs text-muted-foreground mb-2">{issue.building || 'General'} · {issue.floor || 'GF'} · Rm {issue.room || 'N/A'}</p>
+                      <Button size="sm" variant="outline" className="w-full h-8" onClick={() => void handleStatus(issue.id, 'in-progress')}>Fast-track In Progress</Button>
+                    </div>
+                  ))}
+                  {fastTrackQueue.length === 0 && <p className="text-sm text-muted-foreground">No timetable-impact tickets in queue.</p>}
                 </div>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setBuildingFilter('all')
-                    setFloorFilter('all')
-                  }}
-                >
-                  Clear Building Filter
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Active: {buildingFilter === 'all' ? 'None' : buildingFilter}
-                </span>
-              </div>
-              <div className="mt-3 space-y-2">
-                {campusPinData.map((pin) => (
-                  <div key={pin.building} className="border border-border rounded-lg p-2">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-semibold">{pin.building}</p>
-                      <span className="text-xs text-muted-foreground">{pin.count} issues</span>
-                    </div>
-                  </div>
-                ))}
-                {campusPinData.length === 0 && <p className="text-sm text-muted-foreground">No data for current filters.</p>}
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="font-bold mb-3 flex items-center gap-2"><BookOpenCheck className="w-4 h-4" />Timetable Impact Fast-Track Queue</h3>
-              <p className="text-xs mb-3 text-muted-foreground">
-                {isLectureHours ? 'Lecture hours active: fast-track mode ON' : 'Outside lecture hours: queue visible for planning'}
-              </p>
-              <div className="space-y-2">
-                {fastTrackQueue.map((issue) => (
-                  <div key={issue.id} className="border border-border rounded-lg p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold">{issue.title}</p>
-                      <span className={`text-[11px] px-2 py-1 rounded-full ${priorityClass(issue.priority || 'low')}`}>{(issue.priority || 'low').toUpperCase()}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{issue.building || 'General'} ΓÇó {issue.floor || 'Ground Floor'} ΓÇó Room {issue.room || 'N/A'}</p>
-                    <div className="mt-2">
-                      <Button size="sm" variant="outline" onClick={() => void handleStatus(issue.id, 'in-progress')}>Fast-track In Progress</Button>
-                    </div>
-                  </div>
-                ))}
-                {fastTrackQueue.length === 0 && <p className="text-sm text-muted-foreground">No timetable-impact tickets in queue.</p>}
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
+        )}
 
-          {/* Pending Staff Approvals */}
-          <Card className="p-6">
-            <h3 className="font-bold mb-4 flex items-center gap-2">
+        {/* ───────── ISSUES TAB ───────── */}
+        {activeTab === 'issues' && (
+          <div className="space-y-4">
+            {/* Bulk actions */}
+            <Card className="p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" className="h-8" onClick={selectAllFiltered}>Select All</Button>
+                <Button size="sm" variant="outline" className="h-8" onClick={clearSelection}>Clear</Button>
+                <span className="text-sm text-muted-foreground">{selectedIssueIds.length} selected</span>
+                <select
+                  value={bulkAssignee}
+                  onChange={(e) => setBulkAssignee(e.target.value)}
+                  className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-border rounded-md bg-background"
+                >
+                  <option value="">Bulk assign staff…</option>
+                  {departmentStaff.map((s) => (
+                    <option key={s._id} value={s._id}>{s.name} ({s.department})</option>
+                  ))}
+                </select>
+                <Button size="sm" className="h-8 shrink-0" onClick={() => void handleBulkAssign()} disabled={!selectedIssueIds.length || !bulkAssignee}>Assign</Button>
+                <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => void handleBulkResolve()} disabled={!selectedIssueIds.length}>Resolve All</Button>
+              </div>
+            </Card>
+
+            {/* Issue cards */}
+            <div className="space-y-3">
+              {filteredIssues.map((issue) => (
+                <div key={issue.id} className="border border-border rounded-xl p-3 bg-card">
+                  <div className="flex items-start gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIssueIds.includes(issue.id)}
+                      onChange={() => toggleSelect(issue.id)}
+                      className="mt-1 shrink-0 w-4 h-4"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm leading-snug">{issue.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {issue.department || issue.category} · {issue.building || 'General'} · Rm {issue.room || 'N/A'}
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusClass(issue.status)}`}>{issue.status || 'pending'}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${priorityClass(issue.priority || 'low')}`}>{(issue.priority || 'low').toUpperCase()}</span>
+                        {issue.assignee && <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted">👤 {issue.assignee}</span>}
+                        {issue.escalated && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">Escalated</span>}
+                        {issue.timetableImpact && <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700">Timetable</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        value={assetDrafts[issue.id] ?? issue.assetId ?? ''}
+                        onChange={(e) => setAssetDrafts((prev) => ({ ...prev, [issue.id]: e.target.value }))}
+                        placeholder="Asset ID"
+                        className="text-sm h-8 flex-1"
+                      />
+                      <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={() => void handleAssetSave(issue.id)}>Save</Button>
+                    </div>
+                    <select
+                      value={issue.assignee || ''}
+                      onChange={(e) => void handleAssign(issue.id, e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-border rounded-md bg-background"
+                    >
+                      <option value="">Assign staff…</option>
+                      {departmentStaff.map((s) => (
+                        <option key={s._id} value={s._id}>{s.name}</option>
+                      ))}
+                    </select>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => void handleApprove(issue.id)}>Approve</Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => void handleStatus(issue.id, 'in-progress')}>In Prog.</Button>
+                      <Button size="sm" className="h-8 text-xs" onClick={() => void handleResolve(issue.id)}>Resolve</Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {filteredIssues.length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground text-sm">No issues match current filters.</p>
+                  <Button variant="link" size="sm" className="mt-2" onClick={() => setActiveTab('filters')}>Adjust Filters</Button>
+                </Card>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ───────── STAFF TAB ───────── */}
+        {activeTab === 'staff' && (
+          <Card className="p-4">
+            <h3 className="font-bold mb-4 flex items-center gap-2 text-sm">
               <UserCheck className="w-4 h-4 text-amber-500" />
               Pending Staff Approvals
             </h3>
@@ -830,139 +831,118 @@ export default function AdminDashboard() {
             ) : pendingStaff.length === 0 ? (
               <p className="text-sm text-muted-foreground">No pending staff approvals. 🎉</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      <th className="pb-2 pr-4 font-semibold">Name</th>
-                      <th className="pb-2 pr-4 font-semibold">Email</th>
-                      <th className="pb-2 pr-4 font-semibold">Department</th>
-                      <th className="pb-2 pr-4 font-semibold">Status</th>
-                      <th className="pb-2 font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingStaff.map(s => (
-                      <tr key={s._id} className="border-b border-border/50 hover:bg-muted/30">
-                        <td className="py-2 pr-4 font-medium">{s.name}</td>
-                        <td className="py-2 pr-4 text-muted-foreground">{s.email}</td>
-                        <td className="py-2 pr-4 text-muted-foreground">{s.department || '—'}</td>
-                        <td className="py-2 pr-4">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                            <Clock className="w-3 h-3" />
-                            pending
-                          </span>
-                        </td>
-                        <td className="py-2 flex items-center gap-2">
-                          <select
-                            value={pendingRoles[s._id] || 'resolving_staff'}
-                            onChange={(e) => setPendingRoles(prev => ({ ...prev, [s._id]: e.target.value as any }))}
-                            className="text-xs px-2 py-1 border border-border rounded bg-background"
-                          >
-                            <option value="teacher">Teacher (Report Only)</option>
-                            <option value="resolving_staff">Resolving Staff (Full access)</option>
-                          </select>
-                          <Button
-                            size="sm"
-                            className="gap-1 bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => void handleApproveStaff(s._id)}
-                          >
-                            <UserCheck className="w-3.5 h-3.5" />
-                            Approve
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-3">
+                {pendingStaff.map(s => (
+                  <div key={s._id} className="border border-border rounded-xl p-3 space-y-2 bg-card">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-sm">{s.name}</p>
+                        <p className="text-xs text-muted-foreground">{s.email}</p>
+                        <p className="text-xs text-muted-foreground">{s.department || '—'}</p>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 shrink-0">
+                        <Clock className="w-3 h-3" />pending
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={pendingRoles[s._id] || 'resolving_staff'}
+                        onChange={(e) => setPendingRoles(prev => ({ ...prev, [s._id]: e.target.value as any }))}
+                        className="text-xs px-2 py-1.5 border border-border rounded bg-background flex-1 min-w-0"
+                      >
+                        <option value="teacher">Teacher (Report Only)</option>
+                        <option value="resolving_staff">Resolving Staff (Full access)</option>
+                      </select>
+                      <Button
+                        size="sm"
+                        className="gap-1 bg-green-600 hover:bg-green-700 text-white h-8 shrink-0"
+                        onClick={() => void handleApproveStaff(s._id)}
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />Approve
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </Card>
+        )}
 
-          <Card className="p-6">
-            <h3 className="font-bold mb-4">Issue Assignment & Actions</h3>
-            <div className="mb-4 p-3 border border-border rounded-md bg-muted/30">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={selectAllFiltered}>Select All Filtered</Button>
-                <Button size="sm" variant="outline" onClick={clearSelection}>Clear</Button>
-                <span className="text-sm text-muted-foreground">{selectedIssueIds.length} selected</span>
-                <select
-                  value={bulkAssignee}
-                  onChange={(e) => setBulkAssignee(e.target.value)}
-                  className="px-3 py-2 border border-border rounded-md bg-background min-w-44"
-                >
-                  <option value="">Bulk assign staff</option>
-                  {departmentStaff.map((s) => (
-                    <option key={s._id} value={s._id}>{s.name} ({s.department})</option>
-                  ))}
-                </select>
-                <Button size="sm" onClick={() => void handleBulkAssign()} disabled={!selectedIssueIds.length || !bulkAssignee}>
-                  Assign Selected
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleBulkResolve()} disabled={!selectedIssueIds.length}>
-                  Close Selected
-                </Button>
+        {/* ───────── FILTERS TAB ───────── */}
+        {activeTab === 'filters' && (
+          <Card className="p-4">
+            <h2 className="font-semibold flex items-center gap-2 mb-4"><Filter className="w-4 h-4" />Search &amp; Filter</h2>
+            <div className="space-y-3">
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title, description, location…" />
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">All Priority</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">All Departments</option>
+                {departments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+              </select>
+              <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">All Tags</option>
+                {tags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+              </select>
+              <select value={escalatedFilter} onChange={(e) => setEscalatedFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">Escalated: All</option>
+                <option value="true">Escalated Only</option>
+                <option value="false">Not Escalated</option>
+              </select>
+              <select value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">Assignment: All</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Unassigned">Unassigned</option>
+              </select>
+              <select
+                value={buildingFilter}
+                onChange={(e) => { setBuildingFilter(e.target.value); setFloorFilter('all') }}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+              >
+                <option value="all">All Buildings</option>
+                {buildings.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <select value={floorFilter} onChange={(e) => setFloorFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">All Floors</option>
+                {floors.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+              <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm">
+                <option value="all">All Rooms</option>
+                {rooms.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <label className="flex items-center justify-between text-sm border border-border rounded-md px-3 py-2">
+                <span>Timetable impact only</span>
+                <input type="checkbox" checked={timetableOnly} onChange={(e) => setTimetableOnly(e.target.checked)} />
+              </label>
+
+              <div className="pt-3 border-t border-border">
+                <h3 className="font-semibold flex items-center gap-2 mb-2 text-sm"><Settings2 className="w-4 h-4" />Dashboard Widgets</h3>
+                {Object.entries(widgets).map(([key, value]) => (
+                  <label key={key} className="flex items-center justify-between text-sm py-1.5">
+                    <span className="capitalize">{key.replace(/[A-Z]/g, (m) => ` ${m}`).trim()}</span>
+                    <input type="checkbox" checked={value} onChange={(e) => saveWidgets({ ...widgets, [key]: e.target.checked })} />
+                  </label>
+                ))}
               </div>
-            </div>
-            <div className="space-y-4">
-              {filteredIssues.map((issue) => {
-                const staffOptions = TEAM_MEMBERS[issue.department || issue.category || ''] || []
-                return (
-                  <div key={issue.id} className="border border-border rounded-lg p-4">
-                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedIssueIds.includes(issue.id)}
-                            onChange={() => toggleSelect(issue.id)}
-                          />
-                          <p className="font-semibold">{issue.title}</p>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {issue.department || issue.category} / {issue.subCategory || issue.category} ΓÇó {issue.building || 'General'} ΓÇó {issue.floor || 'Ground Floor'} ΓÇó Room {issue.room || 'N/A'}
-                        </p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <span className={`text-xs px-2 py-1 rounded-full ${statusClass(issue.status)}`}>{issue.status || 'pending'}</span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${priorityClass(issue.priority || 'low')}`}>{(issue.priority || 'low').toUpperCase()}</span>
-                          <span className="text-xs px-2 py-1 rounded-full bg-muted">Assigned: {issue.assignee || 'Unassigned'}</span>
-                          {issue.escalated && <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Escalated</span>}
-                          {issue.timetableImpact && <span className="text-xs px-2 py-1 rounded-full bg-cyan-100 text-cyan-700">Timetable Impact</span>}
-                          {issue.fastTrack && <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">Fast Track</span>}
-                        </div>
-                      </div>
 
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Input
-                          value={assetDrafts[issue.id] ?? issue.assetId ?? ''}
-                          onChange={(e) => setAssetDrafts((prev) => ({ ...prev, [issue.id]: e.target.value }))}
-                          placeholder="Asset ID (Admin)"
-                          className="min-w-44"
-                        />
-                        <Button size="sm" variant="outline" onClick={() => void handleAssetSave(issue.id)}>Save Asset</Button>
-                        <select
-                          value={issue.assignee || ''}
-                          onChange={(e) => void handleAssign(issue.id, e.target.value)}
-                          className="px-3 py-2 border border-border rounded-md bg-background min-w-44"
-                        >
-                          <option value="">Assign staff</option>
-                          {departmentStaff.map((s) => (
-                            <option key={s._id} value={s._id}>{s.name}</option>
-                          ))}
-                        </select>
-                        <Button size="sm" variant="outline" onClick={() => void handleApprove(issue.id)}>Approve</Button>
-                        <Button size="sm" variant="outline" onClick={() => void handleStatus(issue.id, 'in-progress')}>In Progress</Button>
-                        <Button size="sm" onClick={() => void handleResolve(issue.id)}>Resolve</Button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-              {filteredIssues.length === 0 && <p className="text-sm text-muted-foreground">No issues match current filters.</p>}
+              <Button className="w-full h-10" onClick={() => setActiveTab('issues')}>
+                Apply &amp; View Issues ({filteredIssues.length})
+              </Button>
             </div>
           </Card>
-        </main>
-      </div>
+        )}
+
+      </main>
     </div>
   )
 }

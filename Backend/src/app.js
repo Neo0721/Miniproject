@@ -32,7 +32,7 @@ app.use((req, res, next) => {
 app.get("/", (_, res) => {
   res.json({
     success: true,
-    message: "Campus Issue Resolver Backend Running",
+    message: "HCAP Backend Running",
     version: "1.0.0",
     status: "healthy"
   });

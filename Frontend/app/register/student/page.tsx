@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React from "react"
 
@@ -9,6 +9,11 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Eye, EyeOff, ArrowLeft, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import { APP_NAME } from '@/lib/branding'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
 
 interface FormErrors {
   name?: string
@@ -37,6 +42,7 @@ export default function StudentRegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [serverError, setServerError] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
 
   const validateForm = () => {
@@ -76,13 +82,55 @@ export default function StudentRegisterPage() {
     if (!validateForm()) return
 
     setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
+    setServerError('')
+
+    try {
+      let token = ''
+      try {
+        const credential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+        token = await credential.user.getIdToken()
+      } catch (fbError: any) {
+        console.warn('Firebase auth failed, continuing with dev bypass if available', fbError)
+      }
+
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : { 'x-user-email': formData.email })
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          role: 'student',
+          phone: formData.phone,
+          rollNo: formData.rollNumber,
+          department: formData.department
+        })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setServerError(data.message || 'Registration failed. Please try again.')
+        setIsLoading(false)
+        return
+      }
+
+      localStorage.setItem('role', 'student')
+      localStorage.setItem('name', formData.name)
+      localStorage.setItem('email', formData.email)
+
       setShowSuccess(true)
       setTimeout(() => {
         router.push(`/dashboard/student?name=${encodeURIComponent(formData.name)}`)
       }, 2000)
-    }, 1500)
+
+    } catch (err: any) {
+      console.error('Registration error:', err)
+      setServerError(err.message || 'Registration failed. Please try again.')
+      setIsLoading(false)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -122,6 +170,12 @@ export default function StudentRegisterPage() {
             <h1 className="text-3xl font-bold text-foreground mb-2">Student Registration</h1>
             <p className="text-muted-foreground">Create your student account</p>
           </div>
+
+          {serverError && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
+              {serverError}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -178,18 +232,14 @@ export default function StudentRegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Department</label>
-              <select
+              <Input
+                type="text"
                 name="department"
                 value={formData.department}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${errors.department ? 'border-red-500' : 'border-border'}`}
-              >
-                <option value="">Select department</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Electronics">Electronics</option>
-                <option value="Mechanical">Mechanical</option>
-                <option value="Civil">Civil</option>
-              </select>
+                placeholder="e.g. Computer Engineering"
+                className={errors.department ? 'border-red-500' : ''}
+              />
               {errors.department && <p className="text-red-600 text-xs mt-1">{errors.department}</p>}
             </div>
 

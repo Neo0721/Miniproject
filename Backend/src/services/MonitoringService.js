@@ -18,14 +18,47 @@ class MonitoringService {
             const now = new Date();
             console.log(`[MonitoringService] Running check at: ${now.toISOString()}`);
 
-            // 1. Check for High Priority Acknowledgement Timeout (5 mins)
+            // 1. Check for High Priority Reminders (5 mins)
+            await this.handleHighPriorityReminders(now);
+  
+            // 2. Check for High Priority Acknowledgement Timeout (Original 5 mins, now maybe slightly longer if needed)
             await this.handleAcknowledgementTimeouts(now);
-
-            // 2. Check for SLA Breaches
+  
+            // 3. Check for SLA Breaches
             await this.handleSLABreaches(now);
 
         } catch (error) {
             console.error("[MonitoringService] Loop error:", error.message);
+        }
+    }
+
+    /**
+     * Sends a push reminder every 5 minutes for unacknowledged high-priority issues
+     */
+    static async handleHighPriorityReminders(now) {
+        const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+        // Find high-priority pending issues that haven't been notified in the last 5 minutes
+        const remindNeeded = await Issue.find({
+            priority: "high",
+            status: "pending",
+            assignedTo: { $ne: null },
+            $or: [
+                { lastReminderSentAt: { $exists: false } },
+                { lastReminderSentAt: { $lt: fiveMinsAgo } },
+                { lastReminderSentAt: null }
+            ]
+        });
+
+        for (const issue of remindNeeded) {
+            // First check if it's been 5 mins since assignment if no reminder sent yet
+            const assignedTime = issue.assignedAt || issue.createdAt;
+            if (new Date(assignedTime) < fiveMinsAgo) {
+                console.log(`[MonitoringService] Sending high-priority reminder for ${issue._id}`);
+                await NotificationService.triggerReminderAlert(issue);
+                issue.lastReminderSentAt = now;
+                await issue.save();
+            }
         }
     }
 

@@ -37,8 +37,8 @@ const UserSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ["student", "teacher", "staff", "admin"],
-        message: "Role must be 'student', 'teacher', 'staff', or 'admin'"
+        values: ["student", "teacher", "staff", "resolving_staff", "admin"],
+        message: "Role must be 'student', 'teacher', 'staff', 'resolving_staff', or 'admin'"
       },
       required: [true, "Role is required"],
       default: "student"
@@ -64,6 +64,13 @@ const UserSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: [100, "Department cannot exceed 100 characters"],
+      sparse: true
+    },
+
+    // FCM device token for push notifications
+    fcmToken: {
+      type: String,
+      trim: true,
       sparse: true
     },
 

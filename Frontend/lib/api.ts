@@ -464,3 +464,12 @@ export function logoutUser() {
     window.location.href = '/login'
   }
 }
+
+/** Register or update the device FCM token for push notifications */
+export async function registerFcmToken(token: string): Promise<boolean> {
+  const result = await requestJson<{ success: boolean }>('/users/fcm-token', {
+    method: 'PATCH',
+    body: JSON.stringify({ token })
+  })
+  return result?.success === true
+}

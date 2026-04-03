@@ -55,16 +55,16 @@ function IssueDetailsContent() {
 
   const role = typeof window !== 'undefined' ? (localStorage.getItem('role') || 'student').toLowerCase() : 'student'
   const currentUser = typeof window !== 'undefined' ? localStorage.getItem('name') || 'You' : 'You'
-  const canPostStatus = role === 'staff' || role === 'admin'
-  const isStudent = role === 'student' || role === 'teacher'
+  const isStaff = role === 'staff' || role === 'resolving_staff'
+  const isAdmin = role === 'admin'
+  const canPostStatus = isStaff || isAdmin
+  const isStudent = !isStaff && !isAdmin
 
   const getDashboardLink = () => {
-    switch (role) {
-      case 'teacher': return '/dashboard/teacher'
-      case 'staff': return '/staff/dashboard'
-      case 'admin': return '/admin/dashboard'
-      default: return '/dashboard/student'
-    }
+    if (role === 'teacher') return '/dashboard/teacher'
+    if (role === 'staff' || role === 'resolving_staff') return '/staff/dashboard'
+    if (isAdmin) return '/admin/dashboard'
+    return '/dashboard/student'
   }
 
   const loadIssue = async (withLoader = false) => {
@@ -202,6 +202,41 @@ function IssueDetailsContent() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ── Staff Quick Actions (visible to staff/admin only) ── */}
+        {canPostStatus && issue.status !== 'resolved' && (
+          <div className="lg:col-span-3">
+            <Card className="p-4 border-primary/20 bg-primary/5">
+              <h3 className="font-bold text-sm mb-3">Quick Actions</h3>
+              <div className="flex flex-wrap gap-2">
+                {issue.status === 'pending' && (
+                  <Button
+                    size="sm"
+                    className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => void (async () => {
+                      const updated = await postStatusUpdate(issueId, 'in-progress', 'Started working on this issue.', currentUser)
+                      if (updated) { setIssue(updated); toast({ title: 'Marked In Progress' }) }
+                    })()}
+                  >
+                    ▶ Mark In Progress
+                  </Button>
+                )}
+                {(issue.status === 'pending' || issue.status === 'in-progress') && (
+                  <Button
+                    size="sm"
+                    className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => void (async () => {
+                      const updated = await postStatusUpdate(issueId, 'resolved', 'Issue has been resolved.', currentUser)
+                      if (updated) { setIssue(updated); toast({ title: 'Issue marked as Resolved ✓' }) }
+                    })()}
+                  >
+                    ✓ Mark Resolved
+                  </Button>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
         <div className="lg:col-span-2 space-y-6">
           <Card className="p-6">
             <h2 className="font-bold mb-4">Issue Details</h2>

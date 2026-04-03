@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "618961572310",
+    "project_id": "campus-issue-resolver-b66e4",
+    "storage_bucket": "campus-issue-resolver-b66e4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:618961572310:android:503567cdf6a6735b43d477",
+        "android_client_info": {
+          "package_name": "com.miniproject.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWTIBnQKO0caECAHY2m8EnmtoU2W6HNVc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

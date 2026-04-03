@@ -29,19 +29,59 @@ class AssignmentService {
      */
     static async assignToStaff(issue, excludeStaffIds = []) {
         try {
-            const department = issue.department || issue.category;
+            const department = (issue.department || issue.category || "").trim();
+            console.log(`[AssignmentService] Attempting assignment for issue: "${issue.title}" (Dept: "${department}")`);
+
+            // Case-insensitive department match
+            const deptRegex = new RegExp(`^${department.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
 
             // 1. Find all available resolving staff in the department
-            const availableStaff = await Staff.find({
-                department: department,
+            let availableStaff = await Staff.find({
+                department: { $regex: deptRegex },
                 role: "resolving_staff",
                 status: "approved",
                 availabilityStatus: "available",
                 _id: { $nin: excludeStaffIds }
             }).sort({ currentActiveIssues: 1, _id: 1 });
 
+            console.log(`[AssignmentService] Query 1 (available) found: ${availableStaff.length}`);
+
+            // Fallback: if no 'available' staff, pick any non-offline approved resolving_staff
             if (availableStaff.length === 0) {
-                console.log(`[AssignmentService] No available staff found for department: ${department}`);
+                console.log(`[AssignmentService] Trying fallback (any non-offline) for department: "${department}"`);
+                availableStaff = await Staff.find({
+                    department: { $regex: deptRegex },
+                    role: "resolving_staff",
+                    status: "approved",
+                    availabilityStatus: { $ne: "offline" },
+                    _id: { $nin: excludeStaffIds }
+                }).sort({ currentActiveIssues: 1, _id: 1 });
+                console.log(`[AssignmentService] Query 2 (non-offline) found: ${availableStaff.length}`);
+            }
+
+            // Last resort: any approved resolving_staff in department regardless of availability
+            if (availableStaff.length === 0) {
+                console.log(`[AssignmentService] Trying last resort (any approved) for department: "${department}"`);
+                availableStaff = await Staff.find({
+                    department: { $regex: deptRegex },
+                    role: "resolving_staff",
+                    status: "approved",
+                    _id: { $nin: excludeStaffIds }
+                }).sort({ currentActiveIssues: 1, _id: 1 });
+                console.log(`[AssignmentService] Query 3 (any approved) found: ${availableStaff.length}`);
+            }
+
+            if (availableStaff.length === 0) {
+                console.warn(`[AssignmentService] CRITICAL: No staff found at all for department: "${department}"`);
+                
+                // DIAGNOSTIC LOGGING: Let's see what's actually in the DB
+                const totalStaffCount = await Staff.countDocuments({});
+                const allStaff = await Staff.find({}).limit(5);
+                console.log(`[AssignmentService] DB Diagnostic - Total Staff Count: ${totalStaffCount}`);
+                allStaff.forEach(s => {
+                    console.log(`[AssignmentService] - Staff Name: "${s.name}", Email: "${s.email}", Role: "${s.role}", Status: "${s.status}", Department: "${s.department}"`);
+                });
+
                 return null;
             }
 

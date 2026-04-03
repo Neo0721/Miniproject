@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { BookOpen, Users } from 'lucide-react'
+import { APP_NAME, APP_SHORT_NAME } from '@/lib/branding'
 
 export default function RegisterRoleSelection() {
   return (
@@ -11,7 +12,7 @@ export default function RegisterRoleSelection() {
       {/* Header */}
       <header className="border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/" className="text-2xl font-bold text-primary">Campus Issue Resolver</Link>
+          <Link href="/" className="text-2xl font-bold text-primary">{APP_SHORT_NAME}</Link>
         </div>
       </header>
 
@@ -19,7 +20,7 @@ export default function RegisterRoleSelection() {
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-2xl">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-foreground mb-3">Join Campus Issue Resolver</h1>
+            <h1 className="text-4xl font-bold text-foreground mb-3">Join {APP_SHORT_NAME}</h1>
             <p className="text-lg text-muted-foreground">Select your role to create an account</p>
           </div>
 

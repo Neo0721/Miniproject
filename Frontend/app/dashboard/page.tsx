@@ -91,7 +91,7 @@ export default function Dashboard() {
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">FA</div>
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">HC</div>
               <span className="font-bold text-primary hidden sm:inline">{APP_SHORT_NAME}</span>
               <span className="text-xs text-muted-foreground hidden md:inline">{CAMPUS_NAME}</span>
             </div>
@@ -126,7 +126,7 @@ export default function Dashboard() {
           <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5">
             <h1 className="text-2xl sm:text-3xl font-bold text-primary">Welcome to Your Campus Care Desk</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Report smarter, track faster, and help keep Father Agnel, Vashi at its best every day.
+              Report smarter, track faster, and help keep the {CAMPUS_NAME} at its best every day.
             </p>
           </div>
 

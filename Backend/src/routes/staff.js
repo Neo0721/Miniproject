@@ -47,6 +47,7 @@ router.post("/acknowledge/:issueId", authMiddleware, dbUserMiddleware, async (re
         issue.acknowledgedAt = new Date();
         issue.status = "in_progress";
         await issue.save();
+        console.log(`[StaffRoute] Issue ${issue._id} acknowledged. Status set to: ${issue.status}`);
 
         return res.json({ success: true, issue });
     } catch (error) {

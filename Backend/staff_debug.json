@@ -1,0 +1,18 @@
+[
+  {
+    "_id": "69c55f19932d085ac26db6cc",
+    "firebaseUid": "WnUHtrKGLIh0MjtHFusAm7iQZk53",
+    "name": "Aksah",
+    "email": "aksahroseshaji@gmail.com",
+    "phone": "8561512897",
+    "teacherId": "112",
+    "department": "Computer Science",
+    "role": "resolving_staff",
+    "status": "approved",
+    "availabilityStatus": "available",
+    "currentActiveIssues": 0,
+    "createdAt": "2026-03-26T16:30:17.511Z",
+    "updatedAt": "2026-03-29T17:25:58.343Z",
+    "__v": 0
+  }
+]

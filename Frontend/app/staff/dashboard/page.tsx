@@ -10,6 +10,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import Loading from './loading'
 import { logoutUser, fetchIssues, type Issue, updateStaffStatus, acknowledgeIssue, staffResolveIssue, fetchUserProfile } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
+import { APP_SHORT_NAME } from '@/lib/branding'
 
 function SLATimer({ deadline, status }: { deadline?: string, status?: string }) {
   const [timeLeft, setTimeLeft] = useState<string>('')
@@ -151,7 +152,7 @@ function StaffDashboardContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-3">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-primary">Operations Center</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-primary">{APP_SHORT_NAME} Ops Center</h1>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 capitalize">
                 <span className={`w-2 h-2 rounded-full ${availability === 'available' ? 'bg-green-500' : availability === 'offline' ? 'bg-gray-500' : 'bg-orange-500'}`}></span>
                 {userName} • {availability.replace('_', ' ')}

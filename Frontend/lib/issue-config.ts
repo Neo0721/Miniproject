@@ -123,7 +123,7 @@ export const DEPARTMENT_CATEGORIES: Record<string, string[]> = {
   Mechanical: ['General', 'Lab Equipment', 'Workshop'],
   Electronics: ['General', 'Lab Equipment', 'Microcontrollers', 'Embedded Systems'],
   Civil: ['General', 'Lab Equipment', 'Structural', 'Surveying'],
-  'Computer Science': ['General', 'Lab Systems', 'Software Licensing'],
+  'Computer Engineering': ['General', 'Lab Systems', 'Software Licensing'],
   Administration: ['General', 'Office Supplies', 'Documentation'],
   Canteen: []
 }

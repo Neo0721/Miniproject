@@ -30,12 +30,15 @@ const authMiddleware = async (req, res, next) => {
         console.log(`[AUTH DEBUG] Logged in as: ${targetUser.email}`);
         return next();
       } else {
-        console.error(`[AUTH DEBUG] Dev bypass failed: User ${devEmail} not found in database.`);
-        return res.status(401).json({
-          success: false,
-          message: `Dev bypass failed: User ${devEmail} not found`,
-          error: "USER_NOT_FOUND"
-        });
+        console.warn(`[AUTH DEBUG] Dev bypass: User ${devEmail} not found in database. Allowing pass for registration.`);
+        req.user = {
+          uid: `dev_${devEmail}`,
+          email: devEmail,
+          name: "Unknown",
+          firebase_uid: `dev_${devEmail}`
+        };
+        req.dbUser = null;
+        return next();
       }
     }
 
