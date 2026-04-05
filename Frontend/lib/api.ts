@@ -95,7 +95,8 @@ export interface Issue {
   reassignmentCount?: number
   resolvedAt?: string
   updatedAt?: string
-  createdAt?: string
+  slas?: string
+  canReopenUntil?: string
   _id?: string
 }
 

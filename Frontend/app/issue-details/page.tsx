@@ -52,6 +52,7 @@ function IssueDetailsContent() {
   const [feedback, setFeedback] = useState('')
   const [internalNoteText, setInternalNoteText] = useState('')
   const [reopenReason, setReopenReason] = useState<'not-fixed' | 'recurring' | 'partial-fix' | 'wrong-issue' | 'other'>('not-fixed')
+  const [isQuickActionLoading, setIsQuickActionLoading] = useState(false)
 
   const role = typeof window !== 'undefined' ? (localStorage.getItem('role') || 'student').toLowerCase() : 'student'
   const currentUser = typeof window !== 'undefined' ? localStorage.getItem('name') || 'You' : 'You'
@@ -162,7 +163,18 @@ function IssueDetailsContent() {
   }
 
   if (!issue) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Issue not found.</div>
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-4 text-center">
+        <h2 className="text-2xl font-bold text-foreground">Communication Error</h2>
+        <p className="text-muted-foreground max-w-md">The issue could not be found. This often occurs when your network connection drops or the development tunnel disconnects.</p>
+        <div className="flex gap-2 mt-2">
+          <Button onClick={() => void loadIssue(true)}>Retry Connection</Button>
+          <Link href={getDashboardLink()}>
+            <Button variant="outline">Back to Dashboard</Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   const comments = issue.comments || []
@@ -211,10 +223,13 @@ function IssueDetailsContent() {
                 {issue.status === 'pending' && (
                   <Button
                     size="sm"
+                    disabled={isQuickActionLoading}
                     className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                     onClick={() => void (async () => {
+                      setIsQuickActionLoading(true)
                       const updated = await postStatusUpdate(issueId, 'in-progress', 'Started working on this issue.', currentUser)
                       if (updated) { setIssue(updated); toast({ title: 'Marked In Progress' }) }
+                      setIsQuickActionLoading(false)
                     })()}
                   >
                     ▶ Mark In Progress
@@ -223,10 +238,13 @@ function IssueDetailsContent() {
                 {(issue.status === 'pending' || issue.status === 'in-progress') && (
                   <Button
                     size="sm"
+                    disabled={isQuickActionLoading}
                     className="gap-2 bg-green-600 hover:bg-green-700 text-white"
                     onClick={() => void (async () => {
+                      setIsQuickActionLoading(true)
                       const updated = await postStatusUpdate(issueId, 'resolved', 'Issue has been resolved.', currentUser)
                       if (updated) { setIssue(updated); toast({ title: 'Issue marked as Resolved ✓' }) }
+                      setIsQuickActionLoading(false)
                     })()}
                   >
                     ✓ Mark Resolved
@@ -268,7 +286,7 @@ function IssueDetailsContent() {
               <p className="text-sm text-muted-foreground">No photos uploaded.</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {issue.imageUrl && (
+                {issue.imageUrl && attachments.length === 0 && (
                   <div className="rounded-md border border-border p-2">
                     <img src={issue.imageUrl} alt="Primary" className="w-full h-28 object-cover rounded" />
                     <p className="text-xs mt-2 truncate">Initial Image</p>
@@ -277,8 +295,17 @@ function IssueDetailsContent() {
                 {attachments.map((item, idx) => (
                   <div key={`${item.name}-${idx}`} className="rounded-md border border-border p-2">
                     {item.dataUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.dataUrl} alt={item.name} className="w-full h-28 object-cover rounded" />
+                      item.type?.startsWith('image/') || item.dataUrl.startsWith('data:image/') ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.dataUrl} alt={item.name} className="w-full h-28 object-cover rounded" />
+                      ) : (
+                        <div className="w-full h-28 bg-muted border border-dashed rounded flex flex-col justify-center items-center p-2">
+                          <a href={item.dataUrl} download={item.name} className="text-primary hover:underline flex flex-col items-center">
+                            <span className="text-2xl mb-1">📄</span>
+                            <span className="text-xs text-center font-medium">Download File</span>
+                          </a>
+                        </div>
+                      )
                     ) : (
                       <div className="w-full h-28 bg-muted rounded" />
                     )}

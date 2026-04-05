@@ -79,6 +79,12 @@ const StaffSchema = new mongoose.Schema(
             type: String,
             trim: true,
             sparse: true
+        },
+
+        // Credits for fast resolution
+        credits: {
+            type: Number,
+            default: 0
         }
     },
     { timestamps: true }

@@ -821,51 +821,103 @@ export default function AdminDashboard() {
 
         {/* ───────── STAFF TAB ───────── */}
         {activeTab === 'staff' && (
-          <Card className="p-4">
-            <h3 className="font-bold mb-4 flex items-center gap-2 text-sm">
-              <UserCheck className="w-4 h-4 text-amber-500" />
-              Pending Staff Approvals
-            </h3>
-            {pendingStaffLoading ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : pendingStaff.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending staff approvals. 🎉</p>
-            ) : (
-              <div className="space-y-3">
-                {pendingStaff.map(s => (
-                  <div key={s._id} className="border border-border rounded-xl p-3 space-y-2 bg-card">
-                    <div className="flex items-start justify-between gap-2">
+          <div className="space-y-4">
+            <Card className="p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold flex items-center gap-2 text-sm">
+                  <UserCheck className="w-4 h-4 text-green-500" />
+                  Approved Staff & Credits
+                </h3>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => {
+                    const headers = ['name', 'email', 'department', 'activeIssues', 'credits']
+                    const rows = departmentStaff.map(s => [
+                      `"${s.name}"`, s.email, s.department || '', s.currentActiveIssues || 0, s.credits || 0
+                    ].join(','))
+                    const csv = [headers.join(','), ...rows].join('\n')
+                    const blob = new Blob([csv], { type: 'text/csv' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `staff-credits-report-${new Date().toISOString().slice(0, 10)}.csv`
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                  className="gap-2 text-xs h-8"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Staff Report
+                </Button>
+              </div>
+              
+              {departmentStaff.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No approved staff in current department filter.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {departmentStaff.map(s => (
+                    <div key={s._id} className="border border-border rounded-xl p-3 bg-card flex justify-between items-center">
                       <div>
                         <p className="font-semibold text-sm">{s.name}</p>
-                        <p className="text-xs text-muted-foreground">{s.email}</p>
-                        <p className="text-xs text-muted-foreground">{s.department || '—'}</p>
+                        <p className="text-xs text-muted-foreground">{s.department || 'General'}</p>
                       </div>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 shrink-0">
-                        <Clock className="w-3 h-3" />pending
-                      </span>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-primary">Credits: {s.credits || 0}</p>
+                        <p className="text-[10px] text-muted-foreground">Active: {s.currentActiveIssues || 0}</p>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        value={pendingRoles[s._id] || 'resolving_staff'}
-                        onChange={(e) => setPendingRoles(prev => ({ ...prev, [s._id]: e.target.value as any }))}
-                        className="text-xs px-2 py-1.5 border border-border rounded bg-background flex-1 min-w-0"
-                      >
-                        <option value="teacher">Teacher (Report Only)</option>
-                        <option value="resolving_staff">Resolving Staff (Full access)</option>
-                      </select>
-                      <Button
-                        size="sm"
-                        className="gap-1 bg-green-600 hover:bg-green-700 text-white h-8 shrink-0"
-                        onClick={() => void handleApproveStaff(s._id)}
-                      >
-                        <UserCheck className="w-3.5 h-3.5" />Approve
-                      </Button>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="p-4">
+              <h3 className="font-bold mb-4 flex items-center gap-2 text-sm">
+                <UserCheck className="w-4 h-4 text-amber-500" />
+                Pending Staff Approvals
+              </h3>
+              {pendingStaffLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : pendingStaff.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No pending staff approvals. 🎉</p>
+              ) : (
+                <div className="space-y-3">
+                  {pendingStaff.map(s => (
+                    <div key={s._id} className="border border-border rounded-xl p-3 space-y-2 bg-card">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-sm">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.email}</p>
+                          <p className="text-xs text-muted-foreground">{s.department || '—'}</p>
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 shrink-0">
+                          <Clock className="w-3 h-3" />pending
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={pendingRoles[s._id] || 'resolving_staff'}
+                          onChange={(e) => setPendingRoles(prev => ({ ...prev, [s._id]: e.target.value as any }))}
+                          className="text-xs px-2 py-1.5 border border-border rounded bg-background flex-1 min-w-0"
+                        >
+                          <option value="teacher">Teacher (Report Only)</option>
+                          <option value="resolving_staff">Resolving Staff (Full access)</option>
+                        </select>
+                        <Button
+                          size="sm"
+                          className="gap-1 bg-green-600 hover:bg-green-700 text-white h-8 shrink-0"
+                          onClick={() => void handleApproveStaff(s._id)}
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />Approve
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
         )}
 
         {/* ───────── FILTERS TAB ───────── */}

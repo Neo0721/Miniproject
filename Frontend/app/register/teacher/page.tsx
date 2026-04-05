@@ -200,10 +200,11 @@ export default function TeacherRegisterPage() {
               <select name="designation" value={formData.designation} onChange={handleInputChange}
                 className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${errors.designation ? 'border-red-500' : 'border-border'}`}>
                 <option value="">Select designation</option>
-                <option value="Assistant Professor">Assistant Professor</option>
-                <option value="Associate Professor">Associate Professor</option>
-                <option value="Professor">Professor</option>
                 <option value="Head of Department">Head of Department</option>
+                <option value="Professor">Professor</option>
+                <option value="Associate Professor">Associate Professor</option>
+                <option value="Assistant Professor">Assistant Professor</option>
+                <option value="Staff">Staff</option>
               </select>
               {errors.designation && <p className="text-red-600 text-xs mt-1">{errors.designation}</p>}
             </div>

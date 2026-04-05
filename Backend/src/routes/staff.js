@@ -73,10 +73,22 @@ router.post("/resolve/:issueId", authMiddleware, dbUserMiddleware, async (req, r
         issue.resolvedAt = new Date();
         await issue.save();
 
-        // Decrement active issues count for staff
-        await Staff.findByIdAndUpdate(req.dbUser._id, { $inc: { currentActiveIssues: -1 } });
+        let creditGain = 0;
+        const startTime = issue.assignedAt || issue.acknowledgedAt || issue.createdAt;
+        if (startTime) {
+            const durationMs = issue.resolvedAt.getTime() - new Date(startTime).getTime();
+            // Less than 24 hours earns 1 credit
+            if (durationMs > 0 && durationMs < 86400000) {
+                creditGain = 1;
+            }
+        }
 
-        return res.json({ success: true, issue });
+        // Decrement active issues count for staff and add credits
+        await Staff.findByIdAndUpdate(req.dbUser._id, { 
+            $inc: { currentActiveIssues: -1, credits: creditGain } 
+        });
+
+        return res.json({ success: true, issue, creditEarned: creditGain > 0 });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -111,7 +123,8 @@ router.get("/", authMiddleware, dbUserMiddleware, requireAdmin, async (req, res)
                 email: s.email,
                 department: s.department,
                 availabilityStatus: s.availabilityStatus,
-                currentActiveIssues: s.currentActiveIssues
+                currentActiveIssues: s.currentActiveIssues,
+                credits: s.credits || 0
             }))
         });
     } catch (error) {

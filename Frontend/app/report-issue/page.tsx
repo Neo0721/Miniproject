@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Upload, Camera } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -516,15 +516,23 @@ export default function ReportIssuePage() {
               {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
             </div>
 
-            <label className="block border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors">
-              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm font-medium text-foreground">Upload photos (optional)</p>
-              <p className="text-xs text-muted-foreground">Up to {MAX_ATTACHMENTS} images</p>
-              <input type="file" accept="image/*" multiple className="hidden" onChange={handleAttachmentChange} />
-              {attachments.length > 0 && (
-                <p className="text-xs text-primary mt-2">{attachments.length} file(s) ready to upload</p>
-              )}
-            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors">
+                <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm font-medium text-foreground">Upload Files</p>
+                <p className="text-xs text-muted-foreground">Up to {MAX_ATTACHMENTS} files</p>
+                <input type="file" accept="image/*, application/pdf, .doc, .docx" multiple className="hidden" onChange={handleAttachmentChange} />
+              </label>
+              <label className="block border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors">
+                <Camera className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm font-medium text-foreground">Take Photo</p>
+                <p className="text-xs text-muted-foreground">Environment camera</p>
+                <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleAttachmentChange} />
+              </label>
+            </div>
+            {attachments.length > 0 && (
+              <p className="text-xs text-primary mt-2">{attachments.length} file(s) ready to upload</p>
+            )}
 
             {errors.general && <p className="text-red-600 text-sm">{errors.general}</p>}
 
