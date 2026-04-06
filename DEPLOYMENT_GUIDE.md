@@ -1,34 +1,40 @@
 # HCAP App Deployment Guide 🚀
 
-This guide covers deploying your **Backend** strictly to the internet via Railway and configuring your **Mobile App** (APK) to connect to it.
+This guide covers deploying your **Backend** strictly to the internet via Render (100% Free) and configuring your **Mobile App** (APK) to connect to it.
 
 ---
 
-## 1. Deploying the Backend (Railway)
+## 1. Deploying the Backend (Render.com)
 
-We recommend using [Railway](https://railway.app/) for a fast, free-tier backend deployment.
+We recommend using [Render](https://render.com/) for a reliable, completely free backend deployment that requires no credit card.
 
 ### Step 1: Connect your account
-1. Create a [Railway.app](https://railway.app/) account.
-2. Click **New Project** > **Deploy from GitHub repo**.
-3. Select your `Miniproject` repository. 
+1. Create a [Render.com](https://render.com/) account.
+2. Go to your Dashboard and click **New** > **Web Service**.
+3. Choose **"Build and deploy from a Git repository"** and select your `Miniproject` repository.
 
-### Step 2: Configure Environment Variables
-1. Once the project starts building on Railway, click on the project box to open its dashboard.
-2. Navigate to the **Variables** tab.
-3. Click "New Variable" or paste all your backend environment variables from your local `Backend/.env` file. You absolutely need:
+### Step 2: Configure the Service
+In the Web Service settings page, make sure you configure the following:
+1. **Root Directory**: `Backend` *(This is extremely important!)*
+2. **Environment**: `Node`
+3. **Build Command**: `npm install`
+4. **Start Command**: `node src/server.js` *(Or however your app starts, usually `node src/server.js` or `npm start`)*
+5. Scroll down and select the **Free** instance type.
+
+### Step 3: Add Environment Variables
+1. Scroll down to the **Environment Variables** section.
+2. Click **Add Environment Variable** for each of these backend variables from your local `Backend/.env` file:
    - `MONGO_URI` (Your MongoDB URL)
    - `PORT` (Usually `5000`)
    - `EMAIL_HOST` (e.g. `smtp.gmail.com` or `smtp-mail.outlook.com`)
    - `EMAIL_USER`
    - `EMAIL_PASS`
    - Any Firebase secret paths/values your backend relies on.
+3. Click **Create Web Service** to deploy!
 
-### Step 3: Get your Backend URL
-1. Go to the project **Settings** tab.
-2. Scroll down to **Networking** and click **Generate Domain**.
-3. Railway will give you a domain link *(Example: `hcap-backend-production.up.railway.app`)*.
-4. **Copy this URL!** This is what your mobile app will use to communicate.
+### Step 4: Get your Backend URL
+1. Once it finishes building, Render will give you a domain link at the top left of the dashboard *(Example: `miniproject-api.onrender.com`)*.
+2. **Copy this URL!** This is what your mobile app will use to communicate.
 
 ---
 
@@ -38,7 +44,7 @@ Now that your backend is up and running in the cloud, you need to tell your mobi
 
 ### Step 1: Update Environment Targets
 Inside your code editor, open `Frontend/.env.local`.
-Update the backend URL to point to your new LIVE Railway server URL you just generated:
+Update the backend URL to point to your new LIVE Render server URL you just generated:
 
 ```env
 # Before (Local):
@@ -46,8 +52,8 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:5000
 NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api
 
 # After (Live):
-NEXT_PUBLIC_BACKEND_URL=https://hcap-backend-production.up.railway.app
-NEXT_PUBLIC_API_BASE_URL=https://hcap-backend-production.up.railway.app/api
+NEXT_PUBLIC_BACKEND_URL=https://miniproject-api.onrender.com
+NEXT_PUBLIC_API_BASE_URL=https://miniproject-api.onrender.com/api
 ```
 
 ### Step 2: Build the Frontend Static Code

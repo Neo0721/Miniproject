@@ -19,53 +19,54 @@ function initializeFirebaseAdmin() {
       return admin;
     }
 
-    // Get service account path from environment
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+    let serviceAccount;
 
-    if (!serviceAccountPath) {
-      throw new Error(
-        "FIREBASE_SERVICE_ACCOUNT_PATH environment variable is not set. " +
-        "Please set it in your .env file (e.g., src/config/firebase-admin.json)"
-      );
-    }
-
-    // Build candidate paths to look for the credentials file
-    const candidates = [
-      // As provided (absolute or relative to cwd)
-      path.resolve(serviceAccountPath),
-      // Relative to process.cwd()
-      path.resolve(process.cwd(), serviceAccountPath),
-      // Relative to this config directory
-      path.resolve(__dirname, serviceAccountPath),
-      // Common defaults
-      path.resolve(__dirname, "firebase-admin.json"),
-      path.resolve(process.cwd(), "src/config/firebase-admin.json"),
-      path.resolve(process.cwd(), "firebase-admin.json")
-    ];
-
-    // Deduplicate
-    const tried = [...new Set(candidates)];
-
-    // Find first existing file
-    let foundPath = null;
-    for (const p of tried) {
-      if (fs.existsSync(p)) {
-        foundPath = p;
-        break;
+    // 1. Prioritize raw JSON string from environment variables (great for cloud like Vercel/Render)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      } catch (err) {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not a strictly valid JSON string: " + err.message);
       }
-    }
+    } else {
+      // 2. Fallback to file-based loading (Local Dev or Render Secret Files)
+      const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || "src/config/firebase-admin.json";
 
-    if (!foundPath) {
-      console.error("Tried these paths:");
-      tried.forEach(p => console.error(`  - ${p}`));
-      throw new Error(
-        `Firebase credentials file not found at any of the expected locations. ` +
-        `Please set FIREBASE_SERVICE_ACCOUNT_PATH in your .env to the correct relative path (e.g., src/config/firebase-admin.json).`
-      );
-    }
+      // Build candidate paths to look for the credentials file
+      const candidates = [
+        path.resolve(serviceAccountPath),
+        path.resolve(process.cwd(), serviceAccountPath),
+        path.resolve(__dirname, serviceAccountPath),
+        path.resolve(__dirname, "firebase-admin.json"),
+        path.resolve(process.cwd(), "src/config/firebase-admin.json"),
+        "/etc/secrets/firebase-admin.json" // Render native Secret File path
+      ];
 
-    // Load credentials
-    const serviceAccount = require(foundPath);
+      // Deduplicate
+      const tried = [...new Set(candidates)];
+
+      // Find first existing file
+      let foundPath = null;
+      for (const p of tried) {
+        if (fs.existsSync(p)) {
+          foundPath = p;
+          break;
+        }
+      }
+
+      if (!foundPath) {
+        console.error("Tried these paths:");
+        tried.forEach(p => console.error(`  - ${p}`));
+        throw new Error(
+          `Firebase credentials file not found at any of the expected locations. ` +
+          `Please set FIREBASE_SERVICE_ACCOUNT_JSON environment variable with your raw JSON, ` +
+          `or set FIREBASE_SERVICE_ACCOUNT_PATH to a valid relative path.`
+        );
+      }
+
+      // Load credentials from file
+      serviceAccount = require(foundPath);
+    }
 
     if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
       throw new Error(
