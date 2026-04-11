@@ -20,16 +20,13 @@ function getTransporter() {
 }
 
 // ── Firebase Admin (for FCM push) ──────────────────────────────────────────
-let _admin = null;
 function getAdmin() {
-  if (!_admin) {
-    try {
-      _admin = require("firebase-admin");
-    } catch (e) {
-      console.warn("[NotificationService] firebase-admin not available:", e.message);
-    }
+  try {
+    return require("../config/firebase-admin");
+  } catch (e) {
+    console.warn("[NotificationService] firebase-admin not available:", e.message);
+    return null;
   }
-  return _admin;
 }
 
 class NotificationService {
