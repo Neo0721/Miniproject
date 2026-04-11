@@ -111,7 +111,7 @@ class NotificationService {
       console.log(`[NotificationService] Escalation alert: "${issue.title}"`);
 
       const [deptStaff, admins] = await Promise.all([
-        Staff.find({ department: targetDept, status: "approved" }),
+        Staff.find({ department: targetDept, role: "resolving_staff", status: "approved" }),
         User.find({ role: "admin" })
       ]);
 
