@@ -8,8 +8,8 @@ function getTransporter() {
   if (!_transporter) {
     _transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || "smtp.gmail.com",
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
+      port: Number(process.env.EMAIL_PORT) || 465,
+      secure: process.env.EMAIL_SECURE !== "false", // default to true for port 465
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -234,12 +234,33 @@ class NotificationService {
       const admin = getAdmin();
       if (!admin || !admin.messaging) return;
 
+      const isHighPriority = channelId === "high_priority_issues";
+
       await admin.messaging().send({
         token,
         notification: { title, body },
         data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
-        android: { priority: "high", notification: { sound: "default", channelId } },
-        apns: { payload: { aps: { sound: "default", badge: 1 } } }
+        android: {
+          priority: isHighPriority ? "high" : "normal",
+          // ttl: 0 forces immediate delivery, skipping any doze queues if high priority
+          ttl: isHighPriority ? 0 : undefined,
+          notification: {
+            channelId,
+            sound: isHighPriority ? "default" : undefined,
+            defaultSound: isHighPriority ? true : false,
+            defaultVibrateTimings: isHighPriority ? true : false,
+            visibility: "public"
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: isHighPriority ? "default" : undefined,
+              badge: 1,
+              "content-available": 1
+            }
+          }
+        }
       });
       console.log(`[NotificationService] 🔔 Push sent → ${token.slice(0, 20)}...`);
     } catch (err) {
