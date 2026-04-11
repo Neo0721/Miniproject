@@ -85,26 +85,32 @@ class AssignmentService {
                 return null;
             }
 
-            // 2. Get round-robin state
+            // 2. Filter available staff down to only those with the MINIMUM currentActiveIssues
+            const minIssues = availableStaff[0].currentActiveIssues;
+            const candidates = availableStaff.filter(s => s.currentActiveIssues === minIssues);
+
+            console.log(`[AssignmentService] Load Balancing: Found ${candidates.length} candidates with minimum ${minIssues} active issues.`);
+
+            // 3. Get round-robin state
             let meta = await AssignmentMeta.findOne({ department });
             if (!meta) {
                 meta = new AssignmentMeta({ department });
             }
 
-            // 3. Select the next staff in rotation
+            // 4. Select the next staff in rotation among the load-balanced candidates
             let staffToAssign = null;
             if (!meta.lastAssignedStaffId) {
                 // First assignment for this department
-                staffToAssign = availableStaff[0];
+                staffToAssign = candidates[0];
             } else {
-                // Find index of last assigned
-                const lastIndex = availableStaff.findIndex(s => s._id.toString() === meta.lastAssignedStaffId.toString());
-                // Next index (circular)
-                const nextIndex = (lastIndex + 1) % availableStaff.length;
-                staffToAssign = availableStaff[nextIndex];
+                // Find index of last assigned among candidates
+                const lastIndex = candidates.findIndex(s => s._id.toString() === meta.lastAssignedStaffId.toString());
+                // Next index (circular). If lastIndex is -1, it becomes 0.
+                const nextIndex = (lastIndex + 1) % candidates.length;
+                staffToAssign = candidates[nextIndex];
             }
 
-            // 4. Update Staff and AssignmentMeta (Atomic-ish)
+            // 5. Update Staff and AssignmentMeta (Atomic-ish)
             staffToAssign.currentActiveIssues += 1;
             await staffToAssign.save();
 

@@ -558,6 +558,13 @@ router.patch("/:id", authMiddleware, dbUserMiddleware, async (req, res) => {
           by: who,
           ratedAt: new Date()
         };
+        // Clean up heavy properties to avoid dashboard lag when fetching 10+ resolved issues
+        issue.description = `Resolved Summary: This issue was managed and resolved by staff member. Original description removed to reduce database load. Rating score: ${payload.score}/5.`;
+        issue.imageUrl = null;
+        issue.attachments = [];
+        issue.comments = [];
+        issue.statusUpdates = [];
+        issue.internalNotes = [];
         break;
 
       case "resolution-feedback":

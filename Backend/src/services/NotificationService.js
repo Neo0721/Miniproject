@@ -83,13 +83,15 @@ class NotificationService {
       const text = `New Issue: ${issue.title}\nPriority: ${issue.priority}\nReported by: ${reporterName}\nDept: ${targetDept}\nDescription: ${issue.description}`;
 
       // 3. Send email + push in parallel for each staff member
+      const channelId = issue.priority === 'high' ? 'high_priority_issues' : 'issues';
+
       await Promise.allSettled(uniqueStaff.map(async (staff) => {
         const email = staff.email;
         const fcmToken = staff.fcmToken;
 
         await Promise.allSettled([
           email ? NotificationService._sendEmail(email, subject, html, text) : Promise.resolve(),
-          fcmToken ? NotificationService._sendPush(fcmToken, subject, `${reporterName} reported: ${issue.title}`, { issueId: String(issue._id) }) : Promise.resolve()
+          fcmToken ? NotificationService._sendPush(fcmToken, subject, `${reporterName} reported: ${issue.title}`, { issueId: String(issue._id) }, channelId) : Promise.resolve()
         ]);
       }));
 
@@ -137,7 +139,7 @@ class NotificationService {
       await Promise.allSettled(allTargets.map(async (staff) => {
         await Promise.allSettled([
           staff.email ? NotificationService._sendEmail(staff.email, subject, html, text) : Promise.resolve(),
-          staff.fcmToken ? NotificationService._sendPush(staff.fcmToken, subject, `Escalated: ${issue.title}`, { issueId: String(issue._id) }) : Promise.resolve()
+          staff.fcmToken ? NotificationService._sendPush(staff.fcmToken, subject, `Escalated: ${issue.title}`, { issueId: String(issue._id) }, 'high_priority_issues') : Promise.resolve()
         ]);
       }));
       } catch (error) {
@@ -159,7 +161,8 @@ class NotificationService {
           staff.fcmToken,
           "URGENT REMINDER: Action Required",
           `High Priority Issue: "${issue.title}" is still pending your attention.`,
-          { issueId: issue._id.toString(), type: "high_priority_reminder" }
+          { issueId: issue._id.toString(), type: "high_priority_reminder" },
+          "high_priority_issues"
         );
       } catch (error) {
         console.error("[NotificationService] Reminder alert failed:", error.message);
@@ -225,7 +228,7 @@ class NotificationService {
     }
   }
 
-  static async _sendPush(token, title, body, data = {}) {
+  static async _sendPush(token, title, body, data = {}, channelId = "issues") {
     try {
       const admin = getAdmin();
       if (!admin || !admin.messaging) return;
@@ -234,7 +237,7 @@ class NotificationService {
         token,
         notification: { title, body },
         data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
-        android: { priority: "high", notification: { sound: "default", channelId: "issues" } },
+        android: { priority: "high", notification: { sound: "default", channelId } },
         apns: { payload: { aps: { sound: "default", badge: 1 } } }
       });
       console.log(`[NotificationService] 🔔 Push sent → ${token.slice(0, 20)}...`);

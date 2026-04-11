@@ -23,6 +23,27 @@ async function registerPushToken() {
     PushNotifications.addListener('registrationError', (err) => {
       console.warn('[FCM] Registration error:', err)
     })
+
+    // Create Notification Channels for Android to ensure popups and sound work
+    try {
+      await PushNotifications.createChannel({
+        id: 'issues',
+        name: 'Issues Alerts',
+        description: 'General alerts for new and updated issues',
+        importance: 4, // DEFAULT: makes sound, shows in shade
+        visibility: 1, // PUBLIC
+      })
+      await PushNotifications.createChannel({
+        id: 'high_priority_issues',
+        name: 'High Priority Alerts',
+        description: 'Urgent alerts for high priority issues',
+        importance: 5, // MAX: heads-up notification (pop up on screen) + sound
+        visibility: 1, // PUBLIC
+      })
+      console.log('[FCM] Notification channels created')
+    } catch (channelErr) {
+      console.warn('[FCM] Failed to create channels:', channelErr)
+    }
   } catch {
     // Silently ignore on web — PushNotifications only works in Capacitor native
   }
