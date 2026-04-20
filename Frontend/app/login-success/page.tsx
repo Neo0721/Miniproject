@@ -53,30 +53,21 @@ export default function LoginSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const userName = searchParams.get('name') || 'User'
-  const role = searchParams.get('role') || 'student'
+  const redirectPath = searchParams.get('redirect') || '/dashboard'
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
     setIsReady(true)
     // Register FCM token now that the user is authenticated
     void registerPushToken()
-    // Auto-redirect after 5 seconds
-    const dashboard =
-      role === 'admin' ? '/admin/dashboard' :
-      (role === 'staff' || role === 'resolving_staff') ? '/staff/dashboard' :
-      role === 'teacher' ? '/dashboard/teacher' :
-      '/dashboard'
-    const timer = setTimeout(() => router.push(dashboard), 5000)
+    // Auto-redirect after 3 seconds to get them into the app faster
+    const timer = setTimeout(() => router.push(redirectPath), 3000)
     return () => clearTimeout(timer)
-  }, [role, router])
+  }, [redirectPath, router])
 
   if (!isReady) return <Loading />
 
-  const dashboardUrl =
-    role === 'admin' ? '/admin/dashboard' :
-    (role === 'staff' || role === 'resolving_staff') ? '/staff/dashboard' :
-    role === 'teacher' ? '/dashboard/teacher' :
-    '/dashboard'
+  const dashboardUrl = redirectPath
 
   return (
     <SuccessModal

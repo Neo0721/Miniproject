@@ -12,10 +12,10 @@ import {
   Filter,
   LogOut,
   MapPin,
-  Menu,
   RefreshCw,
   Search,
   Settings2,
+  Star,
   TrendingUp,
   User,
   UserCheck,
@@ -862,8 +862,11 @@ export default function AdminDashboard() {
                         <p className="font-semibold text-sm">{s.name}</p>
                         <p className="text-xs text-muted-foreground">{s.department || 'General'}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-primary">Credits: {s.credits || 0}</p>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${(s.credits || 0) >= 0 ? 'bg-green-100/80 text-green-700 border border-green-200 shadow-sm dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                          <Star className="w-3 h-3 fill-current" />
+                          {s.credits || 0} Credits
+                        </span>
                         <p className="text-[10px] text-muted-foreground">Active: {s.currentActiveIssues || 0}</p>
                       </div>
                     </div>

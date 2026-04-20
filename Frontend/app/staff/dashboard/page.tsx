@@ -11,6 +11,8 @@ import Loading from './loading'
 import { logoutUser, fetchIssues, type Issue, updateStaffStatus, acknowledgeIssue, staffResolveIssue, fetchUserProfile } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { APP_SHORT_NAME } from '@/lib/branding'
+import { useToast } from '@/hooks/use-toast'
+import { Star } from 'lucide-react'
 
 function SLATimer({ deadline, status }: { deadline?: string, status?: string }) {
   const [timeLeft, setTimeLeft] = useState<string>('')
@@ -60,7 +62,9 @@ function StaffDashboardContent() {
   const isResolvingStaff = staffRole === 'resolving_staff'
 
   const [allIssues, setAllIssues] = useState<Issue[]>([])
+  const [credits, setCredits] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
 
   const handleLogout = () => {
     logoutUser()
@@ -79,6 +83,14 @@ function StaffDashboardContent() {
     const res = await acknowledgeIssue(id)
     if (res?.success) {
       setAllIssues(prev => prev.map(i => i.id === id ? res.issue : i))
+      if (res.creditChange !== undefined && res.creditReason) {
+        setCredits(prev => prev + res.creditChange!)
+        toast({
+          title: res.creditChange > 0 ? "Credits Earned!" : res.creditChange < 0 ? "Credits Lost" : "SLA Update",
+          description: res.creditReason,
+          variant: res.creditChange < 0 ? "destructive" : "default"
+        })
+      }
     }
   }
 
@@ -88,6 +100,14 @@ function StaffDashboardContent() {
     const res = await staffResolveIssue(id)
     if (res?.success) {
       setAllIssues(prev => prev.map(i => i.id === id ? res.issue : i))
+      if (res.creditChange !== undefined && res.creditReason) {
+        setCredits(prev => prev + res.creditChange!)
+        toast({
+          title: res.creditChange > 0 ? "Great Job!" : res.creditChange < 0 ? "Credits Lost" : "SLA Update",
+          description: res.creditReason,
+          variant: res.creditChange < 0 ? "destructive" : "default"
+        })
+      }
     }
   }
 
@@ -102,6 +122,7 @@ function StaffDashboardContent() {
           setAllIssues(issues || [])
           if (profile) {
             setUserName(profile.name)
+            if (profile.credits !== undefined) setCredits(profile.credits)
             if (profile.availabilityStatus) setAvailability(profile.availabilityStatus as any)
           }
         } catch (err) {
@@ -153,10 +174,14 @@ function StaffDashboardContent() {
           <div className="flex items-center gap-4">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-primary">{APP_SHORT_NAME} Ops Center</h1>
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 capitalize">
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 capitalize mt-1">
                 <span className={`w-2 h-2 rounded-full ${availability === 'available' ? 'bg-green-500' : availability === 'offline' ? 'bg-gray-500' : 'bg-orange-500'}`}></span>
                 {userName} • {availability.replace('_', ' ')}
               </p>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded-full text-xs font-bold shadow-sm">
+              <Star className="w-4 h-4 fill-current" />
+              {credits} Credits
             </div>
           </div>
           <div className="flex gap-4 items-center">

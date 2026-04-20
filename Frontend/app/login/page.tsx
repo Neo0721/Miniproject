@@ -64,11 +64,17 @@ export default function LoginPage() {
     setErrors({})
 
     try {
+      console.log('[DEBUG] Starting login flow...')
       // Step 1: Authenticate with Firebase
+      console.log(`[DEBUG] Attempting Firebase signIn for: ${email}`)
       const credential = await signInWithEmailAndPassword(auth, email, password)
-      const token = await credential.user.getIdToken()
+      console.log('[DEBUG] Firebase signIn successful! Getting ID Token...')
+      
+      const token = await credential.user.getIdToken(true) // Force refresh to ensure token retrieval
+      console.log('[DEBUG] ID Token retrieved successfully.')
 
       // Step 2: Verify with backend — checks BOTH User and Staff collections
+      console.log(`[DEBUG] Preparing to fetch Render Backend: ${API_BASE}/auth/login`)
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: {
@@ -76,8 +82,10 @@ export default function LoginPage() {
           Authorization: `Bearer ${token}`
         }
       })
+      console.log(`[DEBUG] Fetch completed. Status: ${res.status}`)
 
       const data = await res.json()
+      console.log(`[DEBUG] Parsed JSON response. Success: ${data.success}`)
 
       if (!res.ok || !data.success) {
         setErrors({ general: data.message || 'Login failed. Please try again.' })
@@ -86,6 +94,7 @@ export default function LoginPage() {
       }
 
       const user = data.user
+      console.log(`[DEBUG] User retrieved correctly: ${user.email} (Role: ${user.role})`)
 
       // Step 3: Validate that the selected role matches
       const actualRole = user.role
@@ -120,9 +129,10 @@ export default function LoginPage() {
         localStorage.removeItem('staffStatus')
       }
 
-      // Step 5: Redirect to the correct dashboard
+      // Step 5: Redirect to the correct dashboard via the success page (to grab Push Tokens)
       const dashboardPath = getDashboardPath(actualRole, user.status)
-      router.push(`${dashboardPath}?name=${encodeURIComponent(user.name || email.split('@')[0])}`)
+      const encodedName = encodeURIComponent(user.name || email.split('@')[0])
+      router.push(`/login-success?name=${encodedName}&redirect=${encodeURIComponent(dashboardPath + '?name=' + encodedName)}`)
 
     } catch (err: any) {
       console.error('Login error:', err)

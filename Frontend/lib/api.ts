@@ -444,17 +444,17 @@ export async function updateStaffStatus(status: 'available' | 'busy' | 'on_break
     body: JSON.stringify({ status })
   })
 }
-export async function acknowledgeIssue(id: string): Promise<{ success: boolean; issue: Issue } | null> {
-  const data = await requestJson<{ success: boolean; issue: any }>(`/staff/acknowledge/${id}`, {
+export async function acknowledgeIssue(id: string): Promise<{ success: boolean; issue: Issue, creditChange?: number, creditReason?: string } | null> {
+  const data = await requestJson<{ success: boolean; issue: any, creditChange?: number, creditReason?: string }>(`/staff/acknowledge/${id}`, {
     method: 'POST'
   })
-  return data?.issue ? { success: data.success, issue: normalizeIssue(data.issue) } : null
+  return data?.issue ? { success: data.success, issue: normalizeIssue(data.issue), creditChange: data.creditChange, creditReason: data.creditReason } : null
 }
-export async function staffResolveIssue(id: string): Promise<{ success: boolean; issue: Issue } | null> {
-  const data = await requestJson<{ success: boolean; issue: any }>(`/staff/resolve/${id}`, {
+export async function staffResolveIssue(id: string): Promise<{ success: boolean; issue: Issue, creditChange?: number, creditReason?: string } | null> {
+  const data = await requestJson<{ success: boolean; issue: any, creditChange?: number, creditReason?: string }>(`/staff/resolve/${id}`, {
     method: 'POST'
   })
-  return data?.issue ? { success: data.success, issue: normalizeIssue(data.issue) } : null
+  return data?.issue ? { success: data.success, issue: normalizeIssue(data.issue), creditChange: data.creditChange, creditReason: data.creditReason } : null
 }
 
 export function logoutUser() {

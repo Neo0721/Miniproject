@@ -5,9 +5,14 @@ const config: CapacitorConfig = {
   appName: 'Miniproject',
   webDir: 'out',
   server: {
-    cleartext: true
+    cleartext: true,
+    hostname: 'localhost',
+    iosScheme: 'https'
   },
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },

@@ -12,12 +12,11 @@ class AssignmentService {
         const now = new Date();
         switch (priority) {
             case "high":
-                return new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
+                return new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes
             case "medium":
-                return new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours
             case "low":
             default:
-                return new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
+                return new Date(now.getTime() + 60 * 60 * 1000); // 60 minutes
         }
     }
 

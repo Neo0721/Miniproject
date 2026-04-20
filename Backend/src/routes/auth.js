@@ -267,6 +267,7 @@ router.post("/login", authMiddleware, async (req, res) => {
         rollNo: doc.rollNo || undefined,
         teacherId: doc.teacherId || undefined,
         department: doc.department,
+        credits: doc.credits || 0,
         createdAt: doc.createdAt
       }
     });
@@ -314,6 +315,7 @@ router.get("/verify", authMiddleware, async (req, res) => {
         rollNo: doc.rollNo || undefined,
         teacherId: doc.teacherId || undefined,
         department: doc.department,
+        credits: doc.credits || 0,
         createdAt: doc.createdAt
       }
     });

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { getAuth, initializeAuth, browserLocalPersistence } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,5 +13,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
-export const auth = getAuth(app)
+export const auth = typeof window !== 'undefined' 
+  ? initializeAuth(app, { persistence: browserLocalPersistence }) 
+  : getAuth(app);
 

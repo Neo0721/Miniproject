@@ -49,7 +49,44 @@ router.post("/acknowledge/:issueId", authMiddleware, dbUserMiddleware, async (re
         await issue.save();
         console.log(`[StaffRoute] Issue ${issue._id} acknowledged. Status set to: ${issue.status}`);
 
-        return res.json({ success: true, issue });
+        // SLA Credit Logic for Acknowledgement (Time to Start)
+        let creditChange = 0;
+        let creditReason = "Standard response time";
+        
+        const startTime = issue.assignedAt || issue.createdAt;
+        if (startTime) {
+            const durationMs = issue.acknowledgedAt.getTime() - new Date(startTime).getTime();
+            const minutesToAck = durationMs / (1000 * 60);
+
+            const priority = issue.priority || "medium";
+
+            if (priority === "high") {
+                if (minutesToAck <= 5) {
+                    creditChange = 5;
+                    creditReason = "Fast high-priority start (+5 credits)";
+                } else {
+                    creditChange = -5;
+                    creditReason = "Delayed high-priority start (-5 credits)";
+                }
+            } else {
+                if (minutesToAck <= 5) {
+                    creditChange = 3;
+                    creditReason = "Fast start (+3 credits)";
+                } else if (minutesToAck <= 10) {
+                    creditChange = 1;
+                    creditReason = "Standard start (+1 credit)";
+                } else {
+                    creditChange = -2;
+                    creditReason = "Delayed start (-2 credits)";
+                }
+            }
+        }
+
+        if (creditChange !== 0) {
+            await Staff.findByIdAndUpdate(req.dbUser._id, { $inc: { credits: creditChange } });
+        }
+
+        return res.json({ success: true, issue, creditChange, creditReason });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -73,22 +110,44 @@ router.post("/resolve/:issueId", authMiddleware, dbUserMiddleware, async (req, r
         issue.resolvedAt = new Date();
         await issue.save();
 
-        let creditGain = 0;
-        const startTime = issue.assignedAt || issue.acknowledgedAt || issue.createdAt;
+        // SLA Credit Logic for Resolution
+        let creditChange = 0;
+        let creditReason = "Issue resolved outside ideal timeframe";
+
+        const startTime = issue.acknowledgedAt || issue.assignedAt || issue.createdAt;
         if (startTime) {
             const durationMs = issue.resolvedAt.getTime() - new Date(startTime).getTime();
-            // Less than 24 hours earns 1 credit
-            if (durationMs > 0 && durationMs < 86400000) {
-                creditGain = 1;
+            const priority = issue.priority || "medium";
+            const minutesToResolve = durationMs / (1000 * 60);
+
+            if (priority === "high") {
+                if (minutesToResolve <= 30) {
+                    creditChange = 10;
+                    creditReason = "Fast high-priority resolution (+10 credits)";
+                } else {
+                    creditChange = -5;
+                    creditReason = "Delayed high-priority resolution (-5 credits)";
+                }
+            } else {
+                if (minutesToResolve <= 30) {
+                    creditChange = 5;
+                    creditReason = "Fast resolution (+5 credits)";
+                } else if (minutesToResolve <= 60) {
+                    creditChange = 2;
+                    creditReason = "Standard resolution (+2 credits)";
+                } else {
+                    creditChange = -3;
+                    creditReason = "Delayed resolution (-3 credits)";
+                }
             }
         }
 
         // Decrement active issues count for staff and add credits
         await Staff.findByIdAndUpdate(req.dbUser._id, { 
-            $inc: { currentActiveIssues: -1, credits: creditGain } 
+            $inc: { currentActiveIssues: -1, credits: creditChange } 
         });
 
-        return res.json({ success: true, issue, creditEarned: creditGain > 0 });
+        return res.json({ success: true, issue, creditChange, creditReason });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
