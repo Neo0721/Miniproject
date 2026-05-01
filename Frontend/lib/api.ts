@@ -173,16 +173,15 @@ async function requestJson<T>(endpoint: string, init?: RequestInit): Promise<T |
     if (token) {
       // Authenticated: use proper Bearer token
       headers['Authorization'] = `Bearer ${token}`
-    } else {
-      // Fallback for cases where auth isn't ready yet (e.g. registration flow,
-      // or brief window before Firebase restores the session).
-      // The backend dev bypass picks this up so requests don't hard-fail.
-      if (typeof window !== 'undefined') {
-        const email = localStorage.getItem('email')
-        const role = localStorage.getItem('role')
-        if (email) headers['x-user-email'] = email
-        if (role) headers['x-user-role'] = role
-      }
+    }
+
+    // Always include email fallback so the backend can recover if
+    // Firebase Admin SDK fails to verify the token (e.g. on Render).
+    if (typeof window !== 'undefined') {
+      const email = localStorage.getItem('email')
+      const role = localStorage.getItem('role')
+      if (email) headers['x-user-email'] = email
+      if (role) headers['x-user-role'] = role
     }
 
     // Merge any caller-provided headers
