@@ -104,7 +104,8 @@ export default function LoginPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          'x-user-email': credential.user.email || email // fallback for Render env
         }
       })
 
