@@ -148,6 +148,11 @@ export interface CreateIssuePayload {
 async function getFirebaseToken(): Promise<string | null> {
   try {
     const { auth } = await import('@/lib/firebase')
+    // Wait for Firebase to finish restoring the auth session from persistence.
+    // Without this, currentUser is null for the first few hundred ms after app load.
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady()
+    }
     const user = auth.currentUser
     if (!user) return null
     return await user.getIdToken()
@@ -166,7 +171,18 @@ async function requestJson<T>(endpoint: string, init?: RequestInit): Promise<T |
     }
 
     if (token) {
+      // Authenticated: use proper Bearer token
       headers['Authorization'] = `Bearer ${token}`
+    } else {
+      // Fallback for cases where auth isn't ready yet (e.g. registration flow,
+      // or brief window before Firebase restores the session).
+      // The backend dev bypass picks this up so requests don't hard-fail.
+      if (typeof window !== 'undefined') {
+        const email = localStorage.getItem('email')
+        const role = localStorage.getItem('role')
+        if (email) headers['x-user-email'] = email
+        if (role) headers['x-user-role'] = role
+      }
     }
 
     // Merge any caller-provided headers
