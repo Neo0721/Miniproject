@@ -198,7 +198,7 @@ export default function StudentRegisterPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="student@college.edu"
+                placeholder="you@college.edu or Microsoft Teams email"
                 className={errors.email ? 'border-red-500' : ''}
               />
               {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
@@ -232,14 +232,22 @@ export default function StudentRegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Department</label>
-              <Input
-                type="text"
+              <select
                 name="department"
                 value={formData.department}
                 onChange={handleInputChange}
-                placeholder="e.g. Computer Engineering"
-                className={errors.department ? 'border-red-500' : ''}
-              />
+                className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${errors.department ? 'border-red-500' : 'border-border'}`}
+              >
+                <option value="">Select department</option>
+                <option value="IT">IT</option>
+                <option value="Computer Engineering">Computer Engineering</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Electrical Engineering">Electrical Engineering</option>
+                <option value="EXTC">EXTC</option>
+                <option value="Civil Engineering">Civil Engineering</option>
+                <option value="Diploma">Diploma</option>
+                <option value="Others">Others</option>
+              </select>
               {errors.department && <p className="text-red-600 text-xs mt-1">{errors.department}</p>}
             </div>
 

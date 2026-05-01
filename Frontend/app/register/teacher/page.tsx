@@ -170,7 +170,7 @@ export default function TeacherRegisterPage() {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Email</label>
               <Input type="email" name="email" value={formData.email} onChange={handleInputChange}
-                placeholder="teacher@college.edu" className={errors.email ? 'border-red-500' : ''} />
+                placeholder="you@college.edu or Microsoft Teams email" className={errors.email ? 'border-red-500' : ''} />
               {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
             </div>
 
@@ -190,8 +190,27 @@ export default function TeacherRegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Department</label>
-              <Input type="text" name="department" value={formData.department} onChange={handleInputChange}
-                placeholder="e.g. Computer Engineering" className={errors.department ? 'border-red-500' : ''} />
+              <select
+                name="department"
+                value={formData.department}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground ${errors.department ? 'border-red-500' : 'border-border'}`}
+              >
+                <option value="">Select department</option>
+                <option value="IT">IT</option>
+                <option value="Computer Engineering">Computer Engineering</option>
+                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                <option value="Electrical Engineering">Electrical Engineering</option>
+                <option value="EXTC">EXTC</option>
+                <option value="Civil Engineering">Civil Engineering</option>
+                <option value="Canteen Staff">Canteen Staff</option>
+                <option value="Diploma Staff">Diploma Staff</option>
+                <option value="Library Staff">Library Staff</option>
+                <option value="Workshop Staff">Workshop Staff</option>
+                <option value="Housekeeping">Housekeeping</option>
+                <option value="Administration">Administration</option>
+                <option value="Others">Others</option>
+              </select>
               {errors.department && <p className="text-red-600 text-xs mt-1">{errors.department}</p>}
             </div>
 

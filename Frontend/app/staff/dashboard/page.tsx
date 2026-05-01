@@ -21,31 +21,31 @@ function SLATimer({ deadline, status }: { deadline?: string, status?: string }) 
   useEffect(() => {
     if (!deadline || status === 'resolved') return
 
-    const interval = setInterval(() => {
-      const now = new Date().getTime()
-      const target = new Date(deadline).getTime()
+    function tick() {
+      const now = Date.now()
+      const target = new Date(deadline!).getTime()
       const diff = target - now
-
       if (diff <= 0) {
         setTimeLeft('SLA BREACHED')
         setIsBreached(true)
-        clearInterval(interval)
       } else {
-        const hours = Math.floor(diff / (1000 * 60 * 60))
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-        setTimeLeft(`${hours}h ${minutes}m ${seconds}s`)
-        setIsBreached(diff < 5 * 60 * 1000) // Red if less than 5 mins
+        const h = Math.floor(diff / 3600000)
+        const m = Math.floor((diff % 3600000) / 60000)
+        const s = Math.floor((diff % 60000) / 1000)
+        setTimeLeft(`${h}h ${m}m ${s}s`)
+        setIsBreached(diff < 5 * 60 * 1000)
       }
-    }, 1000)
+    }
 
-    return () => clearInterval(interval)
+    tick() // immediate first paint
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
   }, [deadline, status])
 
-  if (!deadline || status === 'resolved') return null
+  if (!deadline || status === 'resolved' || !timeLeft) return null
 
   return (
-    <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold ${isBreached ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-primary/10 text-primary'}`}>
+    <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold shrink-0 ${isBreached ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-primary/10 text-primary'}`}>
       <Clock className="w-3 h-3" />
       {timeLeft}
     </div>
@@ -170,38 +170,40 @@ function StaffDashboardContent() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-3">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-primary">{APP_SHORT_NAME} Ops Center</h1>
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 capitalize mt-1">
-                <span className={`w-2 h-2 rounded-full ${availability === 'available' ? 'bg-green-500' : availability === 'offline' ? 'bg-gray-500' : 'bg-orange-500'}`}></span>
-                {userName} • {availability.replace('_', ' ')}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center gap-2">
+          {/* Left: Title + status */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-primary leading-tight truncate">{APP_SHORT_NAME} Ops</h1>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 capitalize mt-0.5">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${availability === 'available' ? 'bg-green-500' : availability === 'offline' ? 'bg-gray-500' : 'bg-orange-500'}`}></span>
+                <span className="truncate max-w-[120px] sm:max-w-none">{userName}</span>
+                <span className="hidden sm:inline">• {availability.replace('_', ' ')}</span>
               </p>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded-full text-xs font-bold shadow-sm">
-              <Star className="w-4 h-4 fill-current" />
-              {credits} Credits
+            <div className="flex items-center gap-1 px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400 rounded-full text-xs font-bold shrink-0">
+              <Star className="w-3.5 h-3.5 fill-current" />
+              <span>{credits}</span>
             </div>
           </div>
-          <div className="flex gap-4 items-center">
-            {/* Availability UI */}
-            <div className="md:hidden">
-              <select
-                value={availability}
-                onChange={(e) => void handleStatusToggle(e.target.value as any)}
-                className="bg-muted text-[10px] font-bold uppercase tracking-tight py-1.5 px-2 rounded-md border border-border/50 text-primary"
-              >
-                <option value="available">Available</option>
-                <option value="on_break">On Break</option>
-                <option value="offline">Offline</option>
-              </select>
-            </div>
+
+          {/* Right: Controls */}
+          <div className="flex gap-2 items-center shrink-0">
+            {/* Availability — compact select on mobile, buttons on desktop */}
+            <select
+              value={availability}
+              onChange={(e) => void handleStatusToggle(e.target.value as any)}
+              className="md:hidden bg-muted text-[10px] font-bold uppercase tracking-tight py-1.5 px-2 rounded-md border border-border/50 text-primary max-w-[90px]"
+            >
+              <option value="available">Available</option>
+              <option value="on_break">On Break</option>
+              <option value="offline">Offline</option>
+            </select>
             <div className="hidden md:flex bg-muted p-1 rounded-lg gap-1 border border-border/50 shadow-inner">
               {[
-                { id: 'available', label: 'Go Available', color: 'hover:bg-green-500' },
+                { id: 'available', label: 'Available', color: 'hover:bg-green-500' },
                 { id: 'on_break', label: 'On Break', color: 'hover:bg-orange-500' },
-                { id: 'offline', label: 'Go Offline', color: 'hover:bg-gray-500' }
+                { id: 'offline', label: 'Offline', color: 'hover:bg-gray-500' }
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -212,17 +214,15 @@ function StaffDashboardContent() {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <Link href="/profile">
-                <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
-                  <User className="w-5 h-5 text-muted-foreground" />
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-500 h-9 w-9 p-0">
-                <LogOut className="w-5 h-5" />
+            <ThemeToggle />
+            <Link href="/profile">
+              <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                <User className="w-4 h-4 text-muted-foreground" />
               </Button>
-            </div>
+            </Link>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-red-500 h-9 w-9 p-0">
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </header>

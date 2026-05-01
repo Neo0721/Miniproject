@@ -145,21 +145,39 @@ export interface CreateIssuePayload {
   attachments?: IssueAttachment[]
 }
 
+async function getFirebaseToken(): Promise<string | null> {
+  try {
+    const { auth } = await import('@/lib/firebase')
+    const user = auth.currentUser
+    if (!user) return null
+    return await user.getIdToken()
+  } catch {
+    return null
+  }
+}
+
 async function requestJson<T>(endpoint: string, init?: RequestInit): Promise<T | null> {
   try {
-    const role = typeof window !== 'undefined' ? (localStorage.getItem('role') || 'student') : 'student'
-    const email = typeof window !== 'undefined' ? (localStorage.getItem('email') || localStorage.getItem('name') + '@example.com') : 'student@example.com'
-    const name = typeof window !== 'undefined' ? (localStorage.getItem('name') || 'Student') : 'Student'
+    // Get real Firebase token for proper backend authentication
+    const token = await getFirebaseToken()
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    // Merge any caller-provided headers
+    const callerHeaders = init?.headers as Record<string, string> | undefined
+    if (callerHeaders) {
+      Object.assign(headers, callerHeaders)
+    }
 
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-role': role,
-        'x-user-email': email,
-        'x-user-name': name,
-        ...(init?.headers || {})
-      },
-      ...init
+      ...init,
+      headers,
     })
 
     if (!res.ok) {

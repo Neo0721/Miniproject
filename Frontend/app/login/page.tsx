@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Mail, CheckCircle2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { APP_SHORT_NAME } from '@/lib/branding'
 
@@ -45,6 +45,13 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
 
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+
   const validateForm = () => {
     const newErrors: FormErrors = {}
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -57,6 +64,28 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!forgotEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
+      setForgotError('Please enter a valid email address.')
+      return
+    }
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      await sendPasswordResetEmail(auth, forgotEmail)
+      setForgotSent(true)
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') {
+        setForgotError('No account found with this email.')
+      } else {
+        setForgotError(err.message || 'Failed to send reset email.')
+      }
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateForm()) return
@@ -65,16 +94,12 @@ export default function LoginPage() {
 
     try {
       console.log('[DEBUG] Starting login flow...')
-      // Step 1: Authenticate with Firebase
-      console.log(`[DEBUG] Attempting Firebase signIn for: ${email}`)
       const credential = await signInWithEmailAndPassword(auth, email, password)
       console.log('[DEBUG] Firebase signIn successful! Getting ID Token...')
       
-      const token = await credential.user.getIdToken(true) // Force refresh to ensure token retrieval
+      const token = await credential.user.getIdToken(true)
       console.log('[DEBUG] ID Token retrieved successfully.')
 
-      // Step 2: Verify with backend — checks BOTH User and Staff collections
-      console.log(`[DEBUG] Preparing to fetch Render Backend: ${API_BASE}/auth/login`)
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: {
@@ -82,10 +107,8 @@ export default function LoginPage() {
           Authorization: `Bearer ${token}`
         }
       })
-      console.log(`[DEBUG] Fetch completed. Status: ${res.status}`)
 
       const data = await res.json()
-      console.log(`[DEBUG] Parsed JSON response. Success: ${data.success}`)
 
       if (!res.ok || !data.success) {
         setErrors({ general: data.message || 'Login failed. Please try again.' })
@@ -94,9 +117,8 @@ export default function LoginPage() {
       }
 
       const user = data.user
-      console.log(`[DEBUG] User retrieved correctly: ${user.email} (Role: ${user.role})`)
 
-      // Step 3: Validate that the selected role matches
+      // Validate that the selected role matches
       const actualRole = user.role
       const isTeacherVariant = actualRole === 'teacher' || actualRole === 'resolving_staff' || actualRole === 'staff'
       const selectedTeacherVariant = role === 'teacher'
@@ -117,7 +139,7 @@ export default function LoginPage() {
         return
       }
 
-      // Step 4: Persist session to localStorage
+      // Persist session to localStorage
       localStorage.setItem('role', actualRole)
       localStorage.setItem('name', user.name || email.split('@')[0])
       localStorage.setItem('email', user.email)
@@ -129,7 +151,6 @@ export default function LoginPage() {
         localStorage.removeItem('staffStatus')
       }
 
-      // Step 5: Redirect to the correct dashboard via the success page (to grab Push Tokens)
       const dashboardPath = getDashboardPath(actualRole, user.status)
       const encodedName = encodeURIComponent(user.name || email.split('@')[0])
       router.push(`/login-success?name=${encodedName}&redirect=${encodeURIComponent(dashboardPath + '?name=' + encodedName)}`)
@@ -153,6 +174,72 @@ export default function LoginPage() {
     }
   }
 
+  // ── Forgot Password View ─────────────────────────────────────────────────
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <button
+            onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotError(''); setForgotEmail('') }}
+            className="flex items-center gap-2 mb-8 hover:opacity-80 transition text-sm text-muted-foreground"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back to Sign In
+          </button>
+
+          <Card className="p-8 shadow-lg animate-fade-in-up">
+            <div className="mb-8">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Mail className="w-6 h-6 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground mb-1">Reset Password</h1>
+              <p className="text-muted-foreground text-sm">
+                Enter the email you used to register. We'll send you a reset link.
+              </p>
+            </div>
+
+            {forgotSent ? (
+              <div className="text-center py-4">
+                <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                <p className="font-semibold text-foreground">Reset link sent!</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Check your inbox at <strong>{forgotEmail}</strong>. Follow the link to set a new password.
+                </p>
+                <Button
+                  className="mt-6 w-full"
+                  onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotEmail('') }}
+                >
+                  Back to Sign In
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Email address
+                  </label>
+                  <Input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={e => { setForgotEmail(e.target.value); setForgotError('') }}
+                    placeholder="you@college.edu or your Microsoft Teams email"
+                    className={forgotError ? 'border-red-500' : ''}
+                    autoFocus
+                  />
+                  {forgotError && <p className="text-red-600 text-sm mt-1">{forgotError}</p>}
+                </div>
+                <Button type="submit" disabled={forgotLoading} className="w-full bg-primary hover:bg-primary/90 text-white">
+                  {forgotLoading ? 'Sending…' : 'Send Reset Link'}
+                </Button>
+              </form>
+            )}
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Main Login View ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -201,14 +288,23 @@ export default function LoginPage() {
                   setEmail(e.target.value)
                   if (errors.email) setErrors({ ...errors, email: undefined })
                 }}
-                placeholder="you@college.edu"
+                placeholder="you@college.edu or your Microsoft Teams email"
                 className={errors.email ? 'border-red-500' : ''}
               />
               {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Password</label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-foreground">Password</label>
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotPassword(true); setForgotEmail(email) }}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
