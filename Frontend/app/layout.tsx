@@ -4,6 +4,7 @@ import { Poppins, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from './theme-provider'
 import { Toaster } from '@/components/ui/toaster'
+import { PushNotificationManager } from '@/components/push-notification-manager'
 import { APP_NAME, ORG_NAME } from '@/lib/branding'
 import './globals.css'
 
@@ -54,6 +55,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
           <Toaster />
+          <PushNotificationManager />
           <Analytics />
         </ThemeProvider>
       </body>

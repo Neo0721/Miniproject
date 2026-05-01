@@ -118,11 +118,18 @@ export default function ReportIssuePage() {
   }, [allIssues, formData.title, formData.description, formData.building, formData.floor, formData.room])
 
   useEffect(() => {
+    // Add auth check block
+    const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null
+    if (!role) {
+      router.push('/login')
+      return
+    }
+
     ; (async () => {
       const data = await fetchIssues()
       setAllIssues(data)
     })()
-  }, [])
+  }, [router])
 
   const validateForm = () => {
     const newErrors: FormErrors = {}

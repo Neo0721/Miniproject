@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.miniproject.app',
-  appName: 'Miniproject',
+  appName: 'Hyperlocal Community Action Platform',
   webDir: 'out',
   server: {
     cleartext: true,

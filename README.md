@@ -1,4 +1,4 @@
-# Campus Issue Resolver - Frontend Documentation
+# Hyperlocal Community Action Platform - Frontend Documentation
 
 ## Project Overview
 A comprehensive Next.js application for managing and resolving campus infrastructure issues. Features role-based dashboards for students, teachers, staff, and administrators.

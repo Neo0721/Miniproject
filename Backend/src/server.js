@@ -23,7 +23,7 @@ connectDB().then(() => {
   // Start server only after database is connected
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log("\n============================================");
-    console.log("Campus Issue Resolver Backend Server");
+    console.log("Hyperlocal Community Action Platform Backend Server");
     console.log("============================================");
     console.log(`Environment: ${NODE_ENV}`);
     console.log(`Server running on port: ${PORT}`);

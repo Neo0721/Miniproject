@@ -123,12 +123,7 @@ export default function Dashboard() {
         </aside>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
-          <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5">
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Welcome to Your Campus Care Desk</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Report smarter, track faster, and help keep the {CAMPUS_NAME} at its best every day.
-            </p>
-          </div>
+          {/* Welcome banner removed */}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[

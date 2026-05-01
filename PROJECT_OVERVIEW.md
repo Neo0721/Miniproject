@@ -1,8 +1,8 @@
-# Campus Issue Resolver - Complete Project Overview
+# Hyperlocal Community Action Platform - Complete Project Overview
 
 ## 📋 Project Summary
 
-**Campus Issue Resolver** is a full-stack web application that enables college students to report infrastructure and facility issues, and allows staff/teachers to track and resolve them.
+**Hyperlocal Community Action Platform** is a full-stack web application that enables college students to report infrastructure and facility issues, and allows staff/teachers to track and resolve them.
 
 **Built with:**
 - **Frontend:** Next.js 16 TypeScript with Firebase Authentication
