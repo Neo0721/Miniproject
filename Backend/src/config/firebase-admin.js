@@ -25,6 +25,16 @@ function initializeFirebaseAdmin() {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
       try {
         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+
+        // ── CRITICAL FIX for Render / cloud deployments ──────────────────────
+        // When you paste the service account JSON into Render's env var UI,
+        // the private_key newlines get stored as literal "\n" strings instead
+        // of real newline characters (\n). Firebase's RSA crypto then fails to
+        // parse the key, causing verifyIdToken() to throw on EVERY request.
+        // Replacing \\n → real \n fixes this without changing the JSON structure.
+        if (serviceAccount.private_key) {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
       } catch (err) {
         throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is not a strictly valid JSON string: " + err.message);
       }
