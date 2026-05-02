@@ -73,21 +73,8 @@ export default function LoginPage() {
     setForgotLoading(true)
     setForgotError('')
     try {
-      // IMPORTANT: Never use window.location.origin here.
-      // On iOS (Capacitor), window.location.origin = 'capacitor://localhost'
-      // which Firebase rejects as an unauthorized continue URL.
-      // Always use the real web app URL.
-      const WEB_APP_URL =
-        process.env.NEXT_PUBLIC_BACKEND_URL ||   // e.g. https://miniproject-1t69.onrender.com
-        'http://localhost:3000'
-
-      const actionCodeSettings = {
-        url: `${WEB_APP_URL}/login`,
-        handleCodeInApp: false,
-      }
-
-      // Step 1 (Primary): Send via our own SMTP — this is guaranteed to work
-      // and lands in inbox since it comes from a trusted Gmail address.
+      // Step 1 (Primary): Send via our own SMTP first — comes from a trusted
+      // Gmail address so it lands in inbox, not spam.
       try {
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
         await fetch(`${apiBase}/auth/forgot-password-email`, {
@@ -96,19 +83,20 @@ export default function LoginPage() {
           body: JSON.stringify({ email: forgotEmail })
         })
       } catch {
-        // Silent — even if our server is down, Firebase email is the fallback
+        // Silent — Firebase email is the fallback if our server is down
       }
 
       // Step 2 (Secondary): Ask Firebase to send the official reset link.
-      // Firebase's noreply@ email may land in spam, so it's the backup.
-      // If the email doesn't exist in Firebase, we still show success
-      // (security best practice — don't reveal which emails are registered).
+      // NOTE: We do NOT pass actionCodeSettings here — doing so requires the
+      // redirect URL to be whitelisted in Firebase Console → Authentication →
+      // Settings → Authorized Domains. Without it, Firebase uses its own
+      // default redirect and no domain check is performed.
       try {
-        await sendPasswordResetEmail(auth, forgotEmail, actionCodeSettings)
+        await sendPasswordResetEmail(auth, forgotEmail)
       } catch (fbErr: any) {
-        // auth/user-not-found — silently swallow; show success anyway
+        // Silently swallow auth/user-not-found — don't reveal if email exists
         if (fbErr.code !== 'auth/user-not-found') {
-          throw fbErr // re-throw real errors (network, etc.)
+          throw fbErr
         }
       }
 
