@@ -474,16 +474,10 @@ router.post("/forgot-password-email", async (req, res) => {
 
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Check if user exists in either collection
-      const user  = await User.findOne({ email: normalizedEmail });
-      const Staff = require("../models/Staff");
-      const staff = await Staff.findOne({ email: normalizedEmail });
+      // Validate it looks like an email
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return;
 
-      const target = user || staff;
-      if (!target) {
-        console.log(`[ForgotPassword] Email not found in DB, skipping backup email: ${normalizedEmail}`);
-        return;
-      }
+      console.log(`[ForgotPassword] Sending backup email to: ${normalizedEmail}`);
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://miniproject-1t69.onrender.com";
       const loginUrl = `${appUrl}/login`;
@@ -496,7 +490,7 @@ router.post("/forgot-password-email", async (req, res) => {
             <p style="margin:6px 0 0;opacity:0.85;font-size:13px">Campus Care Desk — HCAP</p>
           </div>
           <div style="padding:24px">
-            <p style="margin-top:0">Hi <strong>${target.name || normalizedEmail}</strong>,</p>
+            <p style="margin-top:0">Hi,</p>
             <p>We received a request to reset the password for your HCAP account (<strong>${normalizedEmail}</strong>).</p>
             <p>
               A password reset link was sent to this address by our authentication system (Firebase).<br/>
@@ -512,7 +506,7 @@ router.post("/forgot-password-email", async (req, res) => {
             </p>
             <p style="font-size:13px;color:#6b7280">
               If you did not request a password reset, you can safely ignore this email.
-              Your password will not be changed unless you click the reset link.
+              Your password will not change unless you click the reset link sent by Firebase.
             </p>
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0"/>
             <p style="font-size:11px;color:#9ca3af;margin:0">
@@ -521,7 +515,7 @@ router.post("/forgot-password-email", async (req, res) => {
           </div>
         </div>`;
 
-      const text = `Hi ${target.name || normalizedEmail},\n\nA password reset link was sent to ${normalizedEmail} by our authentication provider.\n\nPlease check your Spam/Junk folder if you don't see it in your inbox — look for an email from noreply@campus-issue-resolver-b66e4.firebaseapp.com.\n\nIf you did not request this, you can ignore this email.\n\nLogin: ${loginUrl}`;
+      const text = `Hi,\n\nA password reset link was sent to ${normalizedEmail} by our authentication provider.\n\nPlease check your Spam/Junk folder — look for an email from noreply@campus-issue-resolver-b66e4.firebaseapp.com.\n\nIf you did not request this, you can ignore this email.\n\nLogin: ${loginUrl}`;
 
       const nodemailer = require("nodemailer");
       const transporter = nodemailer.createTransport({
@@ -544,7 +538,7 @@ router.post("/forgot-password-email", async (req, res) => {
         text
       });
 
-      console.log(`[ForgotPassword] Backup email sent → ${normalizedEmail}`);
+      console.log(`[ForgotPassword] ✅ Backup email sent → ${normalizedEmail}`);
     } catch (err) {
       console.error("[ForgotPassword] Backup email failed:", err.message);
     }
