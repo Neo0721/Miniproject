@@ -73,14 +73,46 @@ export default function LoginPage() {
     setForgotLoading(true)
     setForgotError('')
     try {
-      await sendPasswordResetEmail(auth, forgotEmail)
+      // actionCodeSettings tells Firebase where to redirect after the user
+      // clicks the reset link — this also helps the email pass spam filters
+      // because it contains a legitimate app URL in the body.
+      const actionCodeSettings = {
+        url: `${process.env.NEXT_PUBLIC_BACKEND_URL
+          ? window.location.origin
+          : 'http://localhost:3000'}/login`,
+        handleCodeInApp: false, // false = link opens in browser, not in-app
+      }
+
+      // Step 1: Ask Firebase to send the official password-reset email.
+      // If the email doesn't exist in Firebase, we still show success
+      // (security best practice — don't reveal which emails are registered).
+      try {
+        await sendPasswordResetEmail(auth, forgotEmail, actionCodeSettings)
+      } catch (fbErr: any) {
+        // auth/user-not-found — silently swallow; show success anyway
+        if (fbErr.code !== 'auth/user-not-found') {
+          throw fbErr // re-throw real errors (network, etc.)
+        }
+      }
+
+      // Step 2: Also send via our own Nodemailer SMTP as a backup delivery
+      // channel, because Firebase's noreply@ emails often land in spam.
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+        await fetch(`${apiBase}/auth/forgot-password-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: forgotEmail })
+        })
+        // We don't check the response — if this fails it's a silent fallback.
+        // The Firebase email is the primary delivery.
+      } catch {
+        // Backup email failed silently — Firebase email is still the primary
+      }
+
       setForgotSent(true)
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        setForgotError('No account found with this email.')
-      } else {
-        setForgotError(err.message || 'Failed to send reset email.')
-      }
+      setForgotError(err.message || 'Failed to send reset email. Please try again.')
     } finally {
       setForgotLoading(false)
     }
