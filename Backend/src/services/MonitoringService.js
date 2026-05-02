@@ -33,28 +33,31 @@ class MonitoringService {
     }
 
     /**
-     * Sends a push reminder every 5 minutes for unacknowledged high-priority issues
+     * Sends a push reminder every 1 minute for unacknowledged high-priority issues.
+     * The monitoring loop runs every 60 seconds, so this fires on every tick
+     * until the staff acknowledges (moves to in_progress) or the issue is reassigned.
      */
     static async handleHighPriorityReminders(now) {
-        const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        const oneMinAgo = new Date(now.getTime() - 1 * 60 * 1000);
 
-        // Find high-priority pending issues that haven't been notified in the last 5 minutes
+        // Find high-priority issues that are still pending (not yet acknowledged)
+        // and either have never been reminded, or were last reminded over 1 minute ago
         const remindNeeded = await Issue.find({
             priority: "high",
             status: "pending",
             assignedTo: { $ne: null },
             $or: [
                 { lastReminderSentAt: { $exists: false } },
-                { lastReminderSentAt: { $lt: fiveMinsAgo } },
+                { lastReminderSentAt: { $lt: oneMinAgo } },
                 { lastReminderSentAt: null }
             ]
         });
 
         for (const issue of remindNeeded) {
-            // First check if it's been 5 mins since assignment if no reminder sent yet
+            // Only start reminding after the issue has been assigned for at least 1 minute
             const assignedTime = issue.assignedAt || issue.createdAt;
-            if (new Date(assignedTime) < fiveMinsAgo) {
-                console.log(`[MonitoringService] Sending high-priority reminder for ${issue._id}`);
+            if (new Date(assignedTime) < oneMinAgo) {
+                console.log(`[MonitoringService] 🔔 HIGH PRIORITY reminder → issue ${issue._id}`);
                 await NotificationService.triggerReminderAlert(issue);
                 issue.lastReminderSentAt = now;
                 await issue.save();
@@ -63,10 +66,12 @@ class MonitoringService {
     }
 
     /**
-     * Reassigns high-priority issues if not acknowledged within 5 minutes
+     * Reassigns high-priority issues if not acknowledged within 10 minutes.
+     * (10 min gives staff enough time to receive and see the 1-min reminders)
      */
     static async handleAcknowledgementTimeouts(now) {
-        const timeoutThreshold = new Date(now.getTime() - 5 * 60 * 1000);
+        const timeoutThreshold = new Date(now.getTime() - 10 * 60 * 1000);
+
 
         // Issues that are NOT acknowledged (acknowledgedAt is null) 
         // AND are high priority 
