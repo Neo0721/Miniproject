@@ -2,25 +2,32 @@ const nodemailer = require("nodemailer");
 const Staff = require("../models/Staff");
 const User = require("../models/User");
 
-// ── Gmail transporter (lazy-created once) ──────────────────────────────────
-let _transporter = null;
+// ── Gmail transporter ───────────────────────────────────────────────────────
+// Creates a fresh transporter each time so a broken connection on Render
+// never permanently blocks email delivery.
 function getTransporter() {
-  if (!_transporter) {
-    _transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || "smtp.gmail.com",
-      port: Number(process.env.EMAIL_PORT) || 465,
-      secure: process.env.EMAIL_SECURE !== "false", // default to true for port 465
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      connectionTimeout: 10000, // 10 seconds max wait for connection
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-      debug: true // Output SMTP traffic logic for debugging
-    });
+  const emailUser = (process.env.EMAIL_USER || "").trim();
+  const emailPass = (process.env.EMAIL_PASS || "").trim();
+
+  if (!emailUser || !emailPass) {
+    console.warn("[NotificationService] ⚠️  EMAIL_USER or EMAIL_PASS not set — email will not send.");
+    return null;
   }
-  return _transporter;
+
+  // Port 587 + STARTTLS is more widely supported on cloud platforms.
+  // If EMAIL_PORT is explicitly set, honour it.
+  const port   = Number(process.env.EMAIL_PORT) || 587;
+  const secure = port === 465; // true only for direct SSL (port 465)
+
+  return nodemailer.createTransport({
+    host:   process.env.EMAIL_HOST || "smtp.gmail.com",
+    port,
+    secure,
+    auth: { user: emailUser, pass: emailPass },
+    connectionTimeout: 15000,
+    greetingTimeout:   15000,
+    socketTimeout:     15000,
+  });
 }
 
 // ── Firebase Admin (for FCM push) ──────────────────────────────────────────
@@ -216,16 +223,17 @@ class NotificationService {
   static async _sendEmail(to, subject, html, text) {
     try {
       const transporter = getTransporter();
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        to,
-        subject,
-        html,
-        text
-      });
-      console.log(`[NotificationService] ✉  Email sent → ${to}`);
+      if (!transporter) {
+        console.error(`[NotificationService] ❌ Email skipped — transporter could not be created (check EMAIL_USER / EMAIL_PASS env vars on Render)`);
+        return;
+      }
+      const from = (process.env.EMAIL_FROM || process.env.EMAIL_USER || "").trim();
+      await transporter.sendMail({ from, to, subject, html, text });
+      console.log(`[NotificationService] ✅ Email sent → ${to}`);
     } catch (err) {
-      console.error(`[NotificationService] Email failed for ${to}:`, err.message);
+      // Log the full SMTP error so Render logs show exactly what went wrong
+      console.error(`[NotificationService] ❌ Email FAILED → ${to}`);
+      console.error(`   Code: ${err.code || "unknown"} | Response: ${err.response || err.message}`);
     }
   }
 
