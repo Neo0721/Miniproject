@@ -125,6 +125,9 @@ export interface StaffMember {
   role: 'teacher' | 'resolving_staff'
   status: 'pending' | 'approved'
   createdAt: string
+  credits?: number
+  currentActiveIssues?: number
+  availabilityStatus?: 'available' | 'busy' | 'on_break' | 'offline'
 }
 
 export interface CreateIssuePayload {
@@ -214,8 +217,14 @@ function normalizeIssue(i: any): Issue {
     ...i,
     id: id ? String(id) : undefined,
     _id: id ? String(id) : undefined,
+    // Map createdAt -> date so admin charts (resolvedMinutes) work correctly
+    date: i.date || i.createdAt,
     imageUrl: i.imageUrl || i.imageBase64,
     status: i.status === 'in_progress' ? 'in-progress' : i.status,
+    // Map submittedBy from reportedBy if not present
+    submittedBy: i.submittedBy || i.reportedBy?.name || i.reportedBy,
+    // Map assignee from assignedTo if not present
+    assignee: i.assignee || (typeof i.assignedTo === 'object' ? i.assignedTo?.name : i.assignedTo),
     comments: i.comments?.map((c: any) => ({ ...c, id: String(c.id || c._id) })),
     statusUpdates: i.statusUpdates?.map((s: any) => ({ ...s, id: String(s.id || s._id) })),
     internalNotes: i.internalNotes?.map((n: any) => ({ ...n, id: String(n.id || n._id) }))

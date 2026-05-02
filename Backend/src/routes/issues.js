@@ -259,6 +259,164 @@ router.get("/my", authMiddleware, dbUserMiddleware, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/issues
+ * @desc    Get all issues (admin/staff)
+ * @access  Protected (Admin or Resolving Staff only)
+ */
+router.get("/", authMiddleware, dbUserMiddleware, async (req, res) => {
+  try {
+    const user = req.dbUser;
+    const isAdmin = user.role === "admin";
+    const isResolvingStaff = user.role === "resolving_staff" || user.role === "staff";
+
+    if (!isAdmin && !isResolvingStaff) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    const { status, category, department, priority, escalated, assigned, sort = "-createdAt", limit = 20, page = 1 } = req.query;
+
+    const query = {};
+
+    // Resolving staff can only see issues assigned to them (as per requirement)
+    if (isResolvingStaff && !isAdmin) {
+      query.assignedTo = user._id;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (category) {
+      query.category = category;
+    }
+
+    if (department) {
+      query.department = department;
+    }
+
+    if (priority) {
+      query.priority = priority;
+    }
+
+    if (escalated) {
+      query.escalated = escalated === "true";
+    }
+
+    if (assigned === "Assigned") {
+      query.assignedTo = { $ne: null };
+    } else if (assigned === "Unassigned") {
+      query.assignedTo = null;
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await Issue.countDocuments(query);
+
+    const issues = await Issue.find(query)
+      .populate("reportedBy", "name email role department")
+      .populate("assignedTo", "name email department")
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum);
+
+    return res.json({
+      success: true,
+      issues: issues.map(issue => ({
+        _id: issue._id,
+        title: issue.title,
+        category: issue.category,
+        location: issue.location,
+        description: issue.description,
+        status: issue.status,
+        priority: issue.priority,
+        imageUrl: issue.imageUrl,
+        reportedBy: issue.reportedBy,
+        assignedTo: issue.assignedTo,
+        building: issue.building,
+        floor: issue.floor,
+        room: issue.room,
+        tags: issue.tags,
+        timetableImpact: issue.timetableImpact,
+        assetId: issue.assetId,
+        department: issue.department,
+        attachments: issue.attachments,
+        createdAt: issue.createdAt,
+        updatedAt: issue.updatedAt,
+        rating: issue.rating,
+        resolutionEvidence: issue.resolutionEvidence,
+        comments: issue.comments,
+        statusUpdates: issue.statusUpdates,
+        internalNotes: (req.user.role === 'staff' || req.user.role === 'admin') ? issue.internalNotes : []
+      })),
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error("Get issues error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching issues",
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/issues/bulk-assign
+ * @desc    Assign multiple issues to a staff member
+ * @access  Protected (Admin only)
+ */
+router.put("/bulk-assign", authMiddleware, dbUserMiddleware, async (req, res) => {
+  try {
+    const user = req.dbUser;
+    if (user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Admin only" });
+    }
+
+    const { issueIds, staffId } = req.body;
+
+    if (!issueIds || !Array.isArray(issueIds) || !staffId) {
+      return res.status(400).json({ success: false, message: "issueIds and staffId are required" });
+    }
+
+    const result = await Issue.updateMany(
+      { _id: { $in: issueIds } },
+      {
+        $set: {
+          assignedTo: staffId,
+          status: "approved",
+          assignedAt: new Date()
+        }
+      }
+    );
+
+    // Update staff active issues count
+    const Staff = require("../models/Staff");
+    await Staff.findByIdAndUpdate(staffId, { $inc: { currentActiveIssues: issueIds.length } });
+
+    return res.json({
+      success: true,
+      message: `Successfully assigned ${result.modifiedCount} issues`,
+      updated: result.modifiedCount
+    });
+  } catch (error) {
+    console.error("Bulk assign issues error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error processing bulk assignment",
+      error: error.message
+    });
+  }
+});
+
+/**
  * @route   GET /api/issues/:id
  * @desc    Get a specific issue by ID
  * @access  Protected (requires Firebase ID token)
@@ -636,159 +794,6 @@ router.delete("/:id", authMiddleware, dbUserMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error deleting issue",
-      error: error.message
-    });
-  }
-});
-
-router.get("/", authMiddleware, dbUserMiddleware, async (req, res) => {
-  try {
-    const user = req.dbUser;
-    const isAdmin = user.role === "admin";
-    const isResolvingStaff = user.role === "resolving_staff" || user.role === "staff";
-
-    if (!isAdmin && !isResolvingStaff) {
-      return res.status(403).json({ success: false, message: "Access denied" });
-    }
-
-    const { status, category, department, priority, escalated, assigned, sort = "-createdAt", limit = 20, page = 1 } = req.query;
-
-    const query = {};
-
-    // Resolving staff can only see issues assigned to them (as per requirement)
-    if (isResolvingStaff && !isAdmin) {
-      query.assignedTo = user._id;
-    }
-
-    if (status) {
-      query.status = status;
-    }
-
-    if (category) {
-      query.category = category;
-    }
-
-    if (department) {
-      query.department = department;
-    }
-
-    if (priority) {
-      query.priority = priority;
-    }
-
-    if (escalated) {
-      query.escalated = escalated === "true";
-    }
-
-    if (assigned === "Assigned") {
-      query.assignedTo = { $ne: null };
-    } else if (assigned === "Unassigned") {
-      query.assignedTo = null;
-    }
-
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    const total = await Issue.countDocuments(query);
-
-    const issues = await Issue.find(query)
-      .populate("reportedBy", "name email role department")
-      .populate("assignedTo", "name email department")
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum);
-
-    return res.json({
-      success: true,
-      issues: issues.map(issue => ({
-        _id: issue._id,
-        title: issue.title,
-        category: issue.category,
-        location: issue.location,
-        description: issue.description,
-        status: issue.status,
-        priority: issue.priority,
-        imageUrl: issue.imageUrl,
-        reportedBy: issue.reportedBy,
-        assignedTo: issue.assignedTo,
-        building: issue.building,
-        floor: issue.floor,
-        room: issue.room,
-        tags: issue.tags,
-        timetableImpact: issue.timetableImpact,
-        assetId: issue.assetId,
-        department: issue.department,
-        attachments: issue.attachments,
-        createdAt: issue.createdAt,
-        updatedAt: issue.updatedAt,
-        rating: issue.rating,
-        resolutionEvidence: issue.resolutionEvidence,
-        comments: issue.comments,
-        statusUpdates: issue.statusUpdates,
-        internalNotes: (req.user.role === 'staff' || req.user.role === 'admin') ? issue.internalNotes : []
-      })),
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: Math.ceil(total / limitNum)
-      }
-    });
-  } catch (error) {
-    console.error("Get issues error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error fetching issues",
-      error: error.message
-    });
-  }
-});
-
-/**
- * @route   PUT /api/issues/bulk-assign
- * @desc    Assign multiple issues to a staff member
- * @access  Protected (Admin only)
- */
-router.put("/bulk-assign", authMiddleware, dbUserMiddleware, async (req, res) => {
-  try {
-    const user = req.dbUser;
-    if (user.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Admin only" });
-    }
-
-    const { issueIds, staffId } = req.body;
-
-    if (!issueIds || !Array.isArray(issueIds) || !staffId) {
-      return res.status(400).json({ success: false, message: "issueIds and staffId are required" });
-    }
-
-    const result = await Issue.updateMany(
-      { _id: { $in: issueIds } },
-      {
-        $set: {
-          assignedTo: staffId,
-          status: "approved",
-          assignedAt: new Date()
-        }
-      }
-    );
-
-    // Update staff active issues count
-    const Staff = require("../models/Staff");
-    await Staff.findByIdAndUpdate(staffId, { $inc: { currentActiveIssues: issueIds.length } });
-
-    return res.json({
-      success: true,
-      message: `Successfully assigned ${result.modifiedCount} issues`,
-      updated: result.modifiedCount
-    });
-  } catch (error) {
-    console.error("Bulk assign issues error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error processing bulk assignment",
       error: error.message
     });
   }
