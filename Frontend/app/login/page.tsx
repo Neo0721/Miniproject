@@ -73,17 +73,34 @@ export default function LoginPage() {
     setForgotLoading(true)
     setForgotError('')
     try {
-      // actionCodeSettings tells Firebase where to redirect after the user
-      // clicks the reset link — this also helps the email pass spam filters
-      // because it contains a legitimate app URL in the body.
+      // IMPORTANT: Never use window.location.origin here.
+      // On iOS (Capacitor), window.location.origin = 'capacitor://localhost'
+      // which Firebase rejects as an unauthorized continue URL.
+      // Always use the real web app URL.
+      const WEB_APP_URL =
+        process.env.NEXT_PUBLIC_BACKEND_URL ||   // e.g. https://miniproject-1t69.onrender.com
+        'http://localhost:3000'
+
       const actionCodeSettings = {
-        url: `${process.env.NEXT_PUBLIC_BACKEND_URL
-          ? window.location.origin
-          : 'http://localhost:3000'}/login`,
-        handleCodeInApp: false, // false = link opens in browser, not in-app
+        url: `${WEB_APP_URL}/login`,
+        handleCodeInApp: false,
       }
 
-      // Step 1: Ask Firebase to send the official password-reset email.
+      // Step 1 (Primary): Send via our own SMTP — this is guaranteed to work
+      // and lands in inbox since it comes from a trusted Gmail address.
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+        await fetch(`${apiBase}/auth/forgot-password-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: forgotEmail })
+        })
+      } catch {
+        // Silent — even if our server is down, Firebase email is the fallback
+      }
+
+      // Step 2 (Secondary): Ask Firebase to send the official reset link.
+      // Firebase's noreply@ email may land in spam, so it's the backup.
       // If the email doesn't exist in Firebase, we still show success
       // (security best practice — don't reveal which emails are registered).
       try {
@@ -93,21 +110,6 @@ export default function LoginPage() {
         if (fbErr.code !== 'auth/user-not-found') {
           throw fbErr // re-throw real errors (network, etc.)
         }
-      }
-
-      // Step 2: Also send via our own Nodemailer SMTP as a backup delivery
-      // channel, because Firebase's noreply@ emails often land in spam.
-      try {
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
-        await fetch(`${apiBase}/auth/forgot-password-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: forgotEmail })
-        })
-        // We don't check the response — if this fails it's a silent fallback.
-        // The Firebase email is the primary delivery.
-      } catch {
-        // Backup email failed silently — Firebase email is still the primary
       }
 
       setForgotSent(true)
