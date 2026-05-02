@@ -113,6 +113,7 @@ export default function AdminDashboard() {
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
   const [bulkAssignee, setBulkAssignee] = useState('')
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [pendingStaff, setPendingStaff] = useState<StaffMember[]>([])
   const [departmentStaff, setDepartmentStaff] = useState<StaffMember[]>([])
   const [pendingStaffLoading, setPendingStaffLoading] = useState(true)
@@ -121,17 +122,22 @@ export default function AdminDashboard() {
   const [assetDrafts, setAssetDrafts] = useState<Record<string, string>>({})
 
   const loadIssues = async (withLoader = false) => {
-    if (withLoader) setLoading(true)
-    const data = await fetchIssues({
-      limit: 1000,
-      status: statusFilter === 'all' ? undefined : statusFilter,
-      priority: priorityFilter === 'all' ? undefined : priorityFilter,
-      department: departmentFilter === 'all' ? undefined : departmentFilter,
-      escalated: escalatedFilter === 'all' ? undefined : escalatedFilter,
-      assigned: assignedFilter === 'all' ? undefined : assignedFilter
-    })
-    setIssues(data)
-    if (withLoader) setLoading(false)
+    try {
+      if (withLoader) setLoading(true)
+      const data = await fetchIssues({
+        limit: 1000,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        priority: priorityFilter === 'all' ? undefined : priorityFilter,
+        department: departmentFilter === 'all' ? undefined : departmentFilter,
+        escalated: escalatedFilter === 'all' ? undefined : escalatedFilter,
+        assigned: assignedFilter === 'all' ? undefined : assignedFilter
+      })
+      setIssues(data)
+    } catch (error) {
+      console.error('Failed to load issues:', error)
+    } finally {
+      if (withLoader) setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -164,6 +170,7 @@ export default function AdminDashboard() {
   }, [])
 
   useEffect(() => {
+    setMounted(true)
     const cached = localStorage.getItem('admin.widgets')
     if (cached) {
       try {
@@ -582,31 +589,43 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="p-4">
                 <h3 className="font-bold mb-3 text-sm">Status Distribution</h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={80}>
-                      {statusDistribution.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="h-[220px] w-full">
+                  {mounted ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={80}>
+                          {statusDistribution.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-muted-foreground text-xs">Initializing chart...</div>
+                  )}
+                </div>
               </Card>
 
               {widgets.responseMetrics && (
                 <Card className="p-4">
                   <h3 className="font-bold mb-3 text-sm">Avg Response Time by Category</h3>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={responseByCategory}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="category" hide />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="avgHours" fill="#2563eb" radius={[6,6,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="h-[220px] w-full">
+                    {mounted ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={responseByCategory}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="category" hide />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="avgHours" fill="#2563eb" radius={[6,6,0,0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-muted-foreground text-xs">Initializing chart...</div>
+                    )}
+                  </div>
                 </Card>
               )}
             </div>

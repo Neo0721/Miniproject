@@ -5,9 +5,9 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Eye, EyeOff, ArrowLeft, Mail, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
+import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { APP_SHORT_NAME } from '@/lib/branding'
 
@@ -45,13 +45,6 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
 
-  // Forgot password state
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [forgotEmail, setForgotEmail] = useState('')
-  const [forgotSent, setForgotSent] = useState(false)
-  const [forgotLoading, setForgotLoading] = useState(false)
-  const [forgotError, setForgotError] = useState('')
-
   const validateForm = () => {
     const newErrors: FormErrors = {}
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -62,50 +55,6 @@ export default function LoginPage() {
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!forgotEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
-      setForgotError('Please enter a valid email address.')
-      return
-    }
-    setForgotLoading(true)
-    setForgotError('')
-    try {
-      // Step 1 (Primary): Send via our own SMTP first — comes from a trusted
-      // Gmail address so it lands in inbox, not spam.
-      try {
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
-        await fetch(`${apiBase}/auth/forgot-password-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: forgotEmail })
-        })
-      } catch {
-        // Silent — Firebase email is the fallback if our server is down
-      }
-
-      // Step 2 (Secondary): Ask Firebase to send the official reset link.
-      // NOTE: We do NOT pass actionCodeSettings here — doing so requires the
-      // redirect URL to be whitelisted in Firebase Console → Authentication →
-      // Settings → Authorized Domains. Without it, Firebase uses its own
-      // default redirect and no domain check is performed.
-      try {
-        await sendPasswordResetEmail(auth, forgotEmail)
-      } catch (fbErr: any) {
-        // Silently swallow auth/user-not-found — don't reveal if email exists
-        if (fbErr.code !== 'auth/user-not-found') {
-          throw fbErr
-        }
-      }
-
-      setForgotSent(true)
-    } catch (err: any) {
-      setForgotError(err.message || 'Failed to send reset email. Please try again.')
-    } finally {
-      setForgotLoading(false)
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -197,72 +146,6 @@ export default function LoginPage() {
     }
   }
 
-  // ── Forgot Password View ─────────────────────────────────────────────────
-  if (showForgotPassword) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <button
-            onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotError(''); setForgotEmail('') }}
-            className="flex items-center gap-2 mb-8 hover:opacity-80 transition text-sm text-muted-foreground"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Sign In
-          </button>
-
-          <Card className="p-8 shadow-lg animate-fade-in-up">
-            <div className="mb-8">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Mail className="w-6 h-6 text-primary" />
-              </div>
-              <h1 className="text-2xl font-bold text-foreground mb-1">Reset Password</h1>
-              <p className="text-muted-foreground text-sm">
-                Enter the email you used to register. We'll send you a reset link.
-              </p>
-            </div>
-
-            {forgotSent ? (
-              <div className="text-center py-4">
-                <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                <p className="font-semibold text-foreground">Reset link sent!</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Check your inbox at <strong>{forgotEmail}</strong>. Follow the link to set a new password.
-                </p>
-                <Button
-                  className="mt-6 w-full"
-                  onClick={() => { setShowForgotPassword(false); setForgotSent(false); setForgotEmail('') }}
-                >
-                  Back to Sign In
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Email address
-                  </label>
-                  <Input
-                    type="email"
-                    value={forgotEmail}
-                    onChange={e => { setForgotEmail(e.target.value); setForgotError('') }}
-                    placeholder="you@college.edu or your Microsoft Teams email"
-                    className={forgotError ? 'border-red-500' : ''}
-                    autoFocus
-                  />
-                  {forgotError && <p className="text-red-600 text-sm mt-1">{forgotError}</p>}
-                </div>
-                <Button type="submit" disabled={forgotLoading} className="w-full bg-primary hover:bg-primary/90 text-white">
-                  {forgotLoading ? 'Sending…' : 'Send Reset Link'}
-                </Button>
-              </form>
-            )}
-          </Card>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Main Login View ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -318,16 +201,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-foreground">Password</label>
-                <button
-                  type="button"
-                  onClick={() => { setShowForgotPassword(true); setForgotEmail(email) }}
-                  className="text-xs text-primary hover:underline font-medium"
-                >
-                  Forgot password?
-                </button>
-              </div>
+              <label className="block text-sm font-medium text-foreground mb-2">Password</label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
